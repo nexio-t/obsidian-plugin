@@ -3,12 +3,13 @@ node_modules/
 
 # Build output
 main.js
+*.js.map
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-.vscode/
 
 # OS
 .DS_Store
@@ -18,5 +19,5 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Local settings (keep sample, ignore local)
-# .claude/settings.local.json is fine to commit as it's project-level
+# Local settings
+.claude/settings.local.json

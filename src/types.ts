@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import type { TFile } from 'obsidian';
 
 // ============================================================================
 // Type Aliases
@@ -23,6 +23,16 @@ export type GroupBy = 'file' | 'date' | 'tag';
  * Task completion status
  */
 export type TaskStatus = 'pending' | 'completed';
+
+/**
+ * Task marker characters
+ */
+export type TaskMarker = ' ' | 'x' | 'X' | '-' | '/' | '>' | '!' | '?';
+
+/**
+ * Task priority levels
+ */
+export type TaskPriority = 'high' | 'medium' | 'low';
 
 // ============================================================================
 // Settings Interface
@@ -103,12 +113,15 @@ export const DEFAULT_SETTINGS: VaultInsightsSettings = {
  */
 export interface ExtractedTask {
   text: string;
+  completed: boolean;
   status: TaskStatus;
   line: number;
   filePath: string;
   fileName: string;
   tags: string[];
   dueDate?: Date;
+  priority?: TaskPriority;
+  taskMarker: TaskMarker;
 }
 
 /**
@@ -116,13 +129,44 @@ export interface ExtractedTask {
  */
 export interface ExtractedTopic {
   name: string;
-  type: TopicSource;
+  displayName: string;
+  source: TopicSource;
   count: number;
   files: string[];
 }
 
 /**
+ * Topics grouped by source
+ */
+export interface TopicsBySource {
+  tags: ExtractedTopic[];
+  headings: ExtractedTopic[];
+  links: ExtractedTopic[];
+}
+
+/**
+ * Full topic analysis result
+ */
+export interface TopicAnalysis {
+  topics: ExtractedTopic[];
+  uniqueCount: number;
+  totalOccurrences: number;
+  bySource: TopicsBySource;
+}
+
+/**
  * Content summary extracted from a note
+ */
+export interface ContentSummary {
+  title: string;
+  excerpt: string;
+  wordCount: number;
+  file: TFile;
+  modifiedAt: number;
+}
+
+/**
+ * Content extraction result (extended)
  */
 export interface ExtractedContent {
   filePath: string;
@@ -137,6 +181,19 @@ export interface ExtractedContent {
 // ============================================================================
 // Metadata Interfaces
 // ============================================================================
+
+/**
+ * Metadata extracted from frontmatter
+ */
+export interface ExtractedMetadata {
+  title?: string;
+  date?: Date;
+  tags: string[];
+  aliases: string[];
+  created?: Date;
+  modified?: Date;
+  customFields: Record<string, unknown>;
+}
 
 /**
  * Information about a heading in a note
@@ -221,4 +278,43 @@ export interface CacheEntry<T> {
   data: T;
   mtime: number;
   cachedAt: number;
+}
+
+// ============================================================================
+// Ollama Integration Interfaces
+// ============================================================================
+
+/**
+ * Ollama connection configuration
+ */
+export interface OllamaConfig {
+  url: string;
+  model: string;
+  timeout: number;
+}
+
+/**
+ * Result from Ollama topic extraction
+ */
+export interface OllamaTopicResult {
+  topics: string[];
+  confidence: number;
+  model: string;
+}
+
+/**
+ * Result from Ollama summarization
+ */
+export interface OllamaSummaryResult {
+  summary: string;
+  model: string;
+}
+
+/**
+ * Ollama model information
+ */
+export interface OllamaModel {
+  name: string;
+  size: number;
+  modified_at: string;
 }
