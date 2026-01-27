@@ -1,0 +1,184 @@
+/* Vault Insights Plugin Styles */
+
+/* Table styling */
+.vault-insights-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1em 0;
+}
+
+.vault-insights-table th,
+.vault-insights-table td {
+	padding: 8px 12px;
+	text-align: left;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vault-insights-table th {
+	font-weight: 600;
+	background-color: var(--background-secondary);
+}
+
+.vault-insights-table tr:hover {
+	background-color: var(--background-secondary-alt);
+}
+
+/* Mermaid chart centering */
+.vault-insights-chart {
+	display: flex;
+	justify-content: center;
+	margin: 1.5em 0;
+}
+
+.vault-insights-chart .mermaid {
+	max-width: 100%;
+}
+
+/* Callout/blockquote styling for empty states */
+.vault-insights-callout {
+	padding: 12px 16px;
+	margin: 1em 0;
+	border-left: 4px solid var(--text-accent);
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+}
+
+.vault-insights-callout-info {
+	border-left-color: var(--text-accent);
+}
+
+.vault-insights-callout-warning {
+	border-left-color: var(--text-warning);
+}
+
+/* Task checkbox alignment */
+.vault-insights-task {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 4px 0;
+}
+
+.vault-insights-task input[type='checkbox'] {
+	margin-top: 4px;
+}
+
+.vault-insights-task-text {
+	flex: 1;
+}
+
+/* Summary statistics styling */
+.vault-insights-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+	margin: 1em 0;
+}
+
+.vault-insights-stat-card {
+	padding: 12px;
+	background-color: var(--background-secondary);
+	border-radius: 8px;
+	text-align: center;
+}
+
+.vault-insights-stat-value {
+	font-size: 1.5em;
+	font-weight: 600;
+	color: var(--text-accent);
+}
+
+.vault-insights-stat-label {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-top: 4px;
+}
+
+/* Topic list styling */
+.vault-insights-topic-list {
+	list-style: none;
+	padding: 0;
+	margin: 1em 0;
+}
+
+.vault-insights-topic-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vault-insights-topic-name {
+	flex: 1;
+}
+
+.vault-insights-topic-count {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-left: 12px;
+}
+
+/* Section headers */
+.vault-insights-section-header {
+	margin-top: 2em;
+	margin-bottom: 1em;
+	padding-bottom: 8px;
+	border-bottom: 2px solid var(--background-modifier-border);
+}
+
+/* File link styling */
+.vault-insights-file-link {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.vault-insights-file-link:hover {
+	text-decoration: underline;
+}
+
+/* Due date highlighting */
+.vault-insights-due-date {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-left: 8px;
+}
+
+.vault-insights-due-date-overdue {
+	color: var(--text-error);
+}
+
+.vault-insights-due-date-today {
+	color: var(--text-warning);
+}
+
+/* Tag badges */
+.vault-insights-tag {
+	display: inline-block;
+	padding: 2px 8px;
+	margin: 0 4px;
+	font-size: 0.8em;
+	background-color: var(--background-modifier-hover);
+	border-radius: 12px;
+	color: var(--text-muted);
+}
+
+/* Chart container responsive sizing */
+@media (max-width: 600px) {
+	.vault-insights-stats {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.vault-insights-chart {
+		overflow-x: auto;
+	}
+}
+
+/* Dark mode adjustments */
+.theme-dark .vault-insights-stat-card {
+	background-color: var(--background-secondary);
+}
+
+.theme-dark .vault-insights-callout {
+	background-color: var(--background-secondary);
+}
