@@ -1,5 +1,5 @@
-import { App, PluginSettingTab, Setting, TFolder } from 'obsidian';
-import { VaultInsightsSettings, TopicSource, ChartType, GroupBy } from './types';
+import { App, PluginSettingTab, Setting } from 'obsidian';
+import type { TopicSource, ChartType, GroupBy } from './types';
 import VaultInsightsPlugin from '../main';
 
 /**

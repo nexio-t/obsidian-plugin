@@ -51,8 +51,9 @@ export class TopicExtractor {
     return Array.from(tagCounts.entries()).map(([name, data]) => ({
       name,
       count: data.count,
-      source: 'tag' as TopicSource,
+      source: 'tags' as TopicSource,
       displayName: data.displayName,
+      files: [],
     }));
   }
 
@@ -94,8 +95,9 @@ export class TopicExtractor {
     return Array.from(headingCounts.entries()).map(([name, data]) => ({
       name,
       count: data.count,
-      source: 'heading' as TopicSource,
+      source: 'headings' as TopicSource,
       displayName: data.displayName,
+      files: [],
     }));
   }
 
@@ -125,8 +127,9 @@ export class TopicExtractor {
     return Array.from(linkCounts.entries()).map(([name, data]) => ({
       name,
       count: data.count,
-      source: 'link' as TopicSource,
+      source: 'links' as TopicSource,
       displayName: data.displayName,
+      files: [],
     }));
   }
 
@@ -147,7 +150,7 @@ export class TopicExtractor {
    */
   countFrequency(
     caches: CachedMetadata[],
-    sources: TopicSource[] = ['tag', 'heading', 'link']
+    sources: TopicSource[] = ['tags', 'headings', 'links']
   ): TopicAnalysis {
     const topicMap = new Map<string, ExtractedTopic>();
 
@@ -159,22 +162,22 @@ export class TopicExtractor {
 
     // Track per-source aggregation
     const sourceAggregates = {
-      tag: new Map<string, ExtractedTopic>(),
-      heading: new Map<string, ExtractedTopic>(),
-      link: new Map<string, ExtractedTopic>(),
+      tags: new Map<string, ExtractedTopic>(),
+      headings: new Map<string, ExtractedTopic>(),
+      links: new Map<string, ExtractedTopic>(),
     };
 
     for (const cache of caches) {
       // Extract based on requested sources
       const topics: ExtractedTopic[] = [];
 
-      if (sources.includes('tag')) {
+      if (sources.includes('tags')) {
         topics.push(...this.extractTags(cache));
       }
-      if (sources.includes('heading')) {
+      if (sources.includes('headings')) {
         topics.push(...this.extractHeadings(cache));
       }
-      if (sources.includes('link')) {
+      if (sources.includes('links')) {
         topics.push(...this.extractLinks(cache));
       }
 
@@ -189,7 +192,7 @@ export class TopicExtractor {
         }
 
         // Per-source aggregate
-        const sourceMap = sourceAggregates[topic.source];
+        const sourceMap = sourceAggregates[topic.source as keyof typeof sourceAggregates];
         const sourceExisting = sourceMap.get(topic.name);
         if (sourceExisting) {
           sourceExisting.count += topic.count;
@@ -203,9 +206,9 @@ export class TopicExtractor {
     const sortByCount = (a: ExtractedTopic, b: ExtractedTopic) => b.count - a.count;
 
     const allTopics = Array.from(topicMap.values()).sort(sortByCount);
-    bySource.tags = Array.from(sourceAggregates.tag.values()).sort(sortByCount);
-    bySource.headings = Array.from(sourceAggregates.heading.values()).sort(sortByCount);
-    bySource.links = Array.from(sourceAggregates.link.values()).sort(sortByCount);
+    bySource.tags = Array.from(sourceAggregates.tags.values()).sort(sortByCount);
+    bySource.headings = Array.from(sourceAggregates.headings.values()).sort(sortByCount);
+    bySource.links = Array.from(sourceAggregates.links.values()).sort(sortByCount);
 
     // Calculate totals
     const totalOccurrences = allTopics.reduce((sum, t) => sum + t.count, 0);

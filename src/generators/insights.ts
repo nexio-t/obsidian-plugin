@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App } from 'obsidian';
 import { BaseGenerator } from './base';
 import { VaultInsightsSettings, GeneratedNote, TopicData } from '../types';
 import {
@@ -18,7 +18,7 @@ export class InsightsGenerator extends BaseGenerator {
 
 	async generate(): Promise<GeneratedNote> {
 		const vaultStats = this.getVaultStats();
-		const allTopics = await this.extractAllTopics();
+		const allTopics = this.extractAllTopics();
 		const folderDistribution = this.getFolderDistribution();
 		const content = this.buildContent(vaultStats, allTopics, folderDistribution);
 
@@ -82,112 +82,81 @@ export class InsightsGenerator extends BaseGenerator {
 		return distribution;
 	}
 
-	private async extractAllTopics(): Promise<{
+	private extractAllTopics(): {
 		all: TopicData[];
 		bySource: Map<'tags' | 'headings' | 'links', TopicData[]>;
-	}> {
+	} {
+		type Source = 'tags' | 'headings' | 'links';
 		const files = this.getAllMarkdownFiles();
-		const allTopics = new Map<string, { count: number; source: 'tags' | 'headings' | 'links' }>();
-		const topicsBySource: Map<'tags' | 'headings' | 'links', Map<string, number>> = new Map([
+		const sourceCounts = new Map<Source, Map<string, number>>([
 			['tags', new Map()],
 			['headings', new Map()],
 			['links', new Map()],
 		]);
 
+		// Helper to increment count in a map
+		const increment = (map: Map<string, number>, key: string) => {
+			map.set(key, (map.get(key) ?? 0) + 1);
+		};
+
+		// Collect counts by source
 		for (const file of files) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			if (!cache) continue;
 
 			if (this.settings.topicSources.includes('tags')) {
-				const tags = cache.tags ?? [];
-				const tagMap = topicsBySource.get('tags')!;
-				for (const tag of tags) {
-					const current = tagMap.get(tag.tag) ?? 0;
-					tagMap.set(tag.tag, current + 1);
-
-					const existing = allTopics.get(tag.tag);
-					if (!existing || existing.source === 'tags') {
-						allTopics.set(tag.tag, {
-							count: (existing?.count ?? 0) + 1,
-							source: 'tags',
-						});
-					}
+				for (const tag of cache.tags ?? []) {
+					increment(sourceCounts.get('tags')!, tag.tag);
 				}
 			}
 
 			if (this.settings.topicSources.includes('headings')) {
-				const headings = cache.headings ?? [];
-				const headingMap = topicsBySource.get('headings')!;
-				for (const heading of headings) {
+				for (const heading of cache.headings ?? []) {
 					if (heading.level <= 2) {
-						const key = heading.heading;
-						const current = headingMap.get(key) ?? 0;
-						headingMap.set(key, current + 1);
-
-						const existing = allTopics.get(key);
-						if (!existing) {
-							allTopics.set(key, {
-								count: 1,
-								source: 'headings',
-							});
-						} else if (existing.source === 'headings') {
-							allTopics.set(key, {
-								count: existing.count + 1,
-								source: 'headings',
-							});
-						}
+						increment(sourceCounts.get('headings')!, heading.heading);
 					}
 				}
 			}
 
 			if (this.settings.topicSources.includes('links')) {
-				const links = cache.links ?? [];
-				const linkMap = topicsBySource.get('links')!;
-				for (const link of links) {
-					const key = link.link;
-					const current = linkMap.get(key) ?? 0;
-					linkMap.set(key, current + 1);
-
-					const existing = allTopics.get(key);
-					if (!existing) {
-						allTopics.set(key, {
-							count: 1,
-							source: 'links',
-						});
-					} else if (existing.source === 'links') {
-						allTopics.set(key, {
-							count: existing.count + 1,
-							source: 'links',
-						});
-					}
+				for (const link of cache.links ?? []) {
+					increment(sourceCounts.get('links')!, link.link);
 				}
 			}
 		}
 
-		const sortedAll: TopicData[] = Array.from(allTopics.entries())
-			.map(([name, data]) => ({
-				name,
-				count: data.count,
-				source: data.source,
-			}))
+		// Helper to convert counts map to sorted TopicData array
+		const toTopicData = (counts: Map<string, number>, source: Source): TopicData[] =>
+			Array.from(counts.entries())
+				.map(([name, count]) => ({ name, count, source }))
+				.sort((a, b) => b.count - a.count)
+				.slice(0, this.settings.maxTopics);
+
+		// Build bySource map
+		const bySource = new Map<Source, TopicData[]>();
+		for (const [source, counts] of sourceCounts) {
+			bySource.set(source, toTopicData(counts, source));
+		}
+
+		// Build combined "all" list (merge all sources, keeping first source encountered)
+		const allCounts = new Map<string, { count: number; source: Source }>();
+		for (const [source, counts] of sourceCounts) {
+			for (const [name, count] of counts) {
+				const existing = allCounts.get(name);
+				if (!existing) {
+					allCounts.set(name, { count, source });
+				} else if (existing.source === source) {
+					allCounts.set(name, { count: existing.count + count, source });
+				}
+			}
+		}
+
+		const all: TopicData[] = Array.from(allCounts.entries())
+			.map(([name, data]) => ({ name, count: data.count, source: data.source }))
 			.sort((a, b) => b.count - a.count)
 			.slice(0, this.settings.maxTopics);
 
-		const bySource = new Map<'tags' | 'headings' | 'links', TopicData[]>();
-
-		for (const [source, counts] of topicsBySource) {
-			const topics: TopicData[] = Array.from(counts.entries())
-				.map(([name, count]) => ({
-					name,
-					count,
-					source,
-				}))
-				.sort((a, b) => b.count - a.count)
-				.slice(0, this.settings.maxTopics);
-			bySource.set(source, topics);
-		}
-
-		return { all: sortedAll, bySource };
+		return { all, bySource };
 	}
 
 	private buildContent(

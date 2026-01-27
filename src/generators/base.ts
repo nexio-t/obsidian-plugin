@@ -1,5 +1,5 @@
-import { App, Notice, TFile, TFolder } from 'obsidian';
-import { VaultInsightsSettings, GeneratedNote, NoteFrontmatter } from '../types';
+import { App, Notice, TFile } from 'obsidian';
+import { VaultInsightsSettings, GeneratedNote, NoteFrontmatter, TopicData } from '../types';
 
 /**
  * Abstract base class for all generators
@@ -47,27 +47,42 @@ export abstract class BaseGenerator {
 	/**
 	 * Build YAML frontmatter string
 	 */
-	private buildFrontmatter(frontmatter: NoteFrontmatter): string {
+	private buildFrontmatter(frontmatter: NoteFrontmatter | Record<string, unknown>): string {
 		const lines: string[] = [];
 
-		lines.push(`title: "${frontmatter.title}"`);
-		lines.push(`generated: ${frontmatter.generated}`);
-		lines.push(`generator: ${frontmatter.generator}`);
+		// Handle NoteFrontmatter type
+		if ('title' in frontmatter && 'generated' in frontmatter && 'generator' in frontmatter) {
+			const fm = frontmatter as NoteFrontmatter;
+			lines.push(`title: "${fm.title}"`);
+			lines.push(`generated: ${fm.generated}`);
+			lines.push(`generator: ${fm.generator}`);
 
-		if (frontmatter.period) {
-			lines.push(`period: ${frontmatter.period}`);
-		}
+			if (fm.period) {
+				lines.push(`period: ${fm.period}`);
+			}
 
-		if (frontmatter.startDate) {
-			lines.push(`startDate: ${frontmatter.startDate}`);
-		}
+			if (fm.startDate) {
+				lines.push(`startDate: ${fm.startDate}`);
+			}
 
-		if (frontmatter.endDate) {
-			lines.push(`endDate: ${frontmatter.endDate}`);
-		}
+			if (fm.endDate) {
+				lines.push(`endDate: ${fm.endDate}`);
+			}
 
-		if (frontmatter.tags && frontmatter.tags.length > 0) {
-			lines.push(`tags: [${frontmatter.tags.join(', ')}]`);
+			if (fm.tags && fm.tags.length > 0) {
+				lines.push(`tags: [${fm.tags.join(', ')}]`);
+			}
+		} else {
+			// Handle generic Record<string, unknown>
+			for (const [key, value] of Object.entries(frontmatter)) {
+				if (typeof value === 'string') {
+					lines.push(`${key}: "${value}"`);
+				} else if (Array.isArray(value)) {
+					lines.push(`${key}: [${value.join(', ')}]`);
+				} else {
+					lines.push(`${key}: ${value}`);
+				}
+			}
 		}
 
 		return lines.join('\n') + '\n';
@@ -117,21 +132,11 @@ export abstract class BaseGenerator {
 	 * Format date for display (January 26, 2026)
 	 */
 	protected formatDateDisplay(date: Date): string {
-		const months = [
-			'January',
-			'February',
-			'March',
-			'April',
-			'May',
-			'June',
-			'July',
-			'August',
-			'September',
-			'October',
-			'November',
-			'December',
-		];
-		return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+		return date.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+		});
 	}
 
 	/**
@@ -253,5 +258,81 @@ export abstract class BaseGenerator {
 	 */
 	protected getISOTimestamp(): string {
 		return new Date().toISOString();
+	}
+
+	/**
+	 * Extract topics from files based on configured sources.
+	 * Shared by daily and weekly summary generators.
+	 */
+	protected extractTopicsFromFiles(files: TFile[]): TopicData[] {
+		const topicCounts = new Map<string, { count: number; source: 'tags' | 'headings' | 'links' }>();
+
+		for (const file of files) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (!cache) continue;
+
+			// Extract tags
+			if (this.settings.topicSources.includes('tags')) {
+				for (const tag of cache.tags ?? []) {
+					const existing = topicCounts.get(tag.tag);
+					topicCounts.set(tag.tag, {
+						count: (existing?.count ?? 0) + 1,
+						source: 'tags',
+					});
+				}
+			}
+
+			// Extract headings (level 1-2 only)
+			if (this.settings.topicSources.includes('headings')) {
+				for (const heading of cache.headings ?? []) {
+					if (heading.level <= 2) {
+						const existing = topicCounts.get(heading.heading);
+						topicCounts.set(heading.heading, {
+							count: (existing?.count ?? 0) + 1,
+							source: 'headings',
+						});
+					}
+				}
+			}
+
+			// Extract links
+			if (this.settings.topicSources.includes('links')) {
+				for (const link of cache.links ?? []) {
+					const existing = topicCounts.get(link.link);
+					topicCounts.set(link.link, {
+						count: (existing?.count ?? 0) + 1,
+						source: 'links',
+					});
+				}
+			}
+		}
+
+		return Array.from(topicCounts.entries())
+			.map(([name, data]) => ({ name, count: data.count, source: data.source }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, this.settings.maxTopics);
+	}
+
+	/**
+	 * Count tasks in files using MetadataCache.
+	 * Shared by daily and weekly summary generators.
+	 */
+	protected countTasksInFiles(files: TFile[]): { total: number; completed: number } {
+		let total = 0;
+		let completed = 0;
+
+		for (const file of files) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (!cache?.listItems) continue;
+
+			for (const item of cache.listItems) {
+				if (item.task !== undefined) {
+					total++;
+					if (item.task !== ' ') completed++;
+				}
+			}
+		}
+
+		return { total, completed };
 	}
 }

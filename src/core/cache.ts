@@ -10,24 +10,29 @@ export class InsightsCache {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
 
   /**
+   * Get a valid cache entry, removing stale entries automatically.
+   * Returns null if cache miss or stale.
+   */
+  private getValidEntry(key: string, file?: TFile): CacheEntry<unknown> | null {
+    const cacheKey = this.generateKey(key, file?.path);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry || this.isStale(entry, file)) {
+      if (entry) this.cache.delete(cacheKey);
+      return null;
+    }
+
+    return entry;
+  }
+
+  /**
    * Get a cached value by key.
    * If a file is provided, validates against file mtime.
    * Returns null if cache miss or stale.
    */
   get<T>(key: string, file?: TFile): T | null {
-    const cacheKey = this.generateKey(key, file?.path);
-    const entry = this.cache.get(cacheKey);
-
-    if (!entry) {
-      return null;
-    }
-
-    if (this.isStale(entry, file)) {
-      this.cache.delete(cacheKey);
-      return null;
-    }
-
-    return entry.data as T;
+    const entry = this.getValidEntry(key, file);
+    return entry ? (entry.data as T) : null;
   }
 
   /**
@@ -36,31 +41,18 @@ export class InsightsCache {
    */
   set<T>(key: string, data: T, file?: TFile): void {
     const cacheKey = this.generateKey(key, file?.path);
-    const entry: CacheEntry<T> = {
+    this.cache.set(cacheKey, {
       data,
       mtime: file?.stat.mtime ?? 0,
       cachedAt: Date.now(),
-    };
-    this.cache.set(cacheKey, entry);
+    });
   }
 
   /**
    * Check if a key exists and is valid.
    */
   has(key: string, file?: TFile): boolean {
-    const cacheKey = this.generateKey(key, file?.path);
-    const entry = this.cache.get(cacheKey);
-
-    if (!entry) {
-      return false;
-    }
-
-    if (this.isStale(entry, file)) {
-      this.cache.delete(cacheKey);
-      return false;
-    }
-
-    return true;
+    return this.getValidEntry(key, file) !== null;
   }
 
   /**

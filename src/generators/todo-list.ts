@@ -157,28 +157,19 @@ export class TodoListGenerator extends BaseGenerator {
 	private groupTasks(tasks: TaskItem[]): Map<string, TaskItem[]> {
 		const grouped = new Map<string, TaskItem[]>();
 
+		const getGroupKey = (task: TaskItem): string => {
+			const keyExtractors: Record<string, () => string> = {
+				date: () => task.dueDate ?? 'No Due Date',
+				tag: () => task.tags?.[0] ?? 'Untagged',
+				file: () => task.file.path,
+			};
+			return (keyExtractors[this.settings.todoGroupBy] ?? keyExtractors.file)();
+		};
+
 		for (const task of tasks) {
-			let groupKey: string;
-
-			switch (this.settings.todoGroupBy) {
-				case 'date':
-					groupKey = task.dueDate ?? 'No Due Date';
-					break;
-				case 'tag':
-					groupKey =
-						task.tags && task.tags.length > 0
-							? task.tags[0]
-							: 'Untagged';
-					break;
-				case 'file':
-				default:
-					groupKey = task.file.path;
-					break;
-			}
-
+			const groupKey = getGroupKey(task);
 			const existing = grouped.get(groupKey) ?? [];
-			existing.push(task);
-			grouped.set(groupKey, existing);
+			grouped.set(groupKey, [...existing, task]);
 		}
 
 		return grouped;
@@ -189,32 +180,26 @@ export class TodoListGenerator extends BaseGenerator {
 		completed: boolean
 	): string {
 		const lines: string[] = [];
+		const checkbox = completed ? '[x]' : '[ ]';
 
 		const sortedGroups = Array.from(grouped.entries()).sort((a, b) => {
+			// For date grouping, put "No Due Date" at the end
 			if (this.settings.todoGroupBy === 'date') {
 				if (a[0] === 'No Due Date') return 1;
 				if (b[0] === 'No Due Date') return -1;
-				return a[0].localeCompare(b[0]);
 			}
 			return a[0].localeCompare(b[0]);
 		});
 
 		for (const [groupKey, tasks] of sortedGroups) {
-			if (this.settings.todoGroupBy === 'file') {
-				lines.push(`### ${this.wikilink(groupKey)}`);
-			} else if (this.settings.todoGroupBy === 'date') {
-				lines.push(`### ${groupKey}`);
-			} else {
-				lines.push(`### ${groupKey}`);
-			}
-			lines.push('');
+			// Format header based on grouping type
+			const header = this.settings.todoGroupBy === 'file'
+				? this.wikilink(groupKey)
+				: groupKey;
+			lines.push(`### ${header}`, '');
 
 			for (const task of tasks) {
-				const checkbox = completed ? '[x]' : '[ ]';
-				const sourceLink = this.wikilink(
-					task.file.path,
-					this.getFileName(task.file)
-				);
+				const sourceLink = this.wikilink(task.file.path, this.getFileName(task.file));
 				lines.push(`- ${checkbox} ${task.text} (${sourceLink})`);
 			}
 			lines.push('');

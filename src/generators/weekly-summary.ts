@@ -3,7 +3,6 @@ import { BaseGenerator } from './base';
 import {
 	VaultInsightsSettings,
 	GeneratedNote,
-	TopicData,
 	SummaryStats,
 	DailyActivity,
 } from '../types';
@@ -28,7 +27,7 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 		const startOfWeek = this.getStartOfWeek(this.date);
 		const endOfWeek = this.getEndOfWeek(this.date);
 
-		const stats = await this.gatherWeeklyStats(startOfWeek, endOfWeek);
+		const stats = this.gatherWeeklyStats(startOfWeek, endOfWeek);
 		const dailyActivity = this.calculateDailyActivity(
 			stats.files,
 			startOfWeek,
@@ -62,23 +61,17 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 		return note;
 	}
 
-	private async gatherWeeklyStats(
-		startOfWeek: Date,
-		endOfWeek: Date
-	): Promise<SummaryStats> {
+	private gatherWeeklyStats(startOfWeek: Date, endOfWeek: Date): SummaryStats {
 		const startTime = startOfWeek.getTime();
 		const endTime = endOfWeek.getTime();
 
 		const createdFiles = this.getFilesCreatedBetween(startTime, endTime);
 		const modifiedFiles = this.getFilesModifiedBetween(startTime, endTime);
 
-		const allTouchedFiles = new Set<TFile>([
-			...createdFiles,
-			...modifiedFiles,
-		]);
+		const allTouchedFiles = [...new Set([...createdFiles, ...modifiedFiles])];
 
-		const topics = await this.extractTopics(Array.from(allTouchedFiles));
-		const taskStats = await this.countTasks(Array.from(allTouchedFiles));
+		const topics = this.extractTopicsFromFiles(allTouchedFiles);
+		const taskStats = this.countTasksInFiles(allTouchedFiles);
 
 		return {
 			notesCreated: createdFiles.length,
@@ -86,7 +79,7 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 			totalTasks: taskStats.total,
 			completedTasks: taskStats.completed,
 			topTopics: topics,
-			files: Array.from(allTouchedFiles),
+			files: allTouchedFiles,
 		};
 	}
 
@@ -96,102 +89,16 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 		endOfWeek: Date
 	): DailyActivity[] {
 		const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-		const counts: number[] = [0, 0, 0, 0, 0, 0, 0];
+		const counts = new Array(7).fill(0);
 
 		for (const file of files) {
 			const mtime = new Date(file.stat.mtime);
-			if (
-				mtime >= startOfWeek &&
-				mtime <= endOfWeek
-			) {
+			if (mtime >= startOfWeek && mtime <= endOfWeek) {
 				counts[mtime.getDay()]++;
 			}
 		}
 
-		return dayNames.map((day, index) => ({
-			day,
-			count: counts[index],
-		}));
-	}
-
-	private async extractTopics(files: TFile[]): Promise<TopicData[]> {
-		const topicCounts = new Map<string, { count: number; source: 'tags' | 'headings' | 'links' }>();
-
-		for (const file of files) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			if (!cache) continue;
-
-			if (this.settings.topicSources.includes('tags')) {
-				const tags = cache.tags ?? [];
-				for (const tag of tags) {
-					const existing = topicCounts.get(tag.tag) ?? { count: 0, source: 'tags' as const };
-					topicCounts.set(tag.tag, {
-						count: existing.count + 1,
-						source: 'tags',
-					});
-				}
-			}
-
-			if (this.settings.topicSources.includes('headings')) {
-				const headings = cache.headings ?? [];
-				for (const heading of headings) {
-					if (heading.level <= 2) {
-						const key = heading.heading;
-						const existing = topicCounts.get(key) ?? { count: 0, source: 'headings' as const };
-						topicCounts.set(key, {
-							count: existing.count + 1,
-							source: 'headings',
-						});
-					}
-				}
-			}
-
-			if (this.settings.topicSources.includes('links')) {
-				const links = cache.links ?? [];
-				for (const link of links) {
-					const key = link.link;
-					const existing = topicCounts.get(key) ?? { count: 0, source: 'links' as const };
-					topicCounts.set(key, {
-						count: existing.count + 1,
-						source: 'links',
-					});
-				}
-			}
-		}
-
-		const topics: TopicData[] = Array.from(topicCounts.entries())
-			.map(([name, data]) => ({
-				name,
-				count: data.count,
-				source: data.source,
-			}))
-			.sort((a, b) => b.count - a.count)
-			.slice(0, this.settings.maxTopics);
-
-		return topics;
-	}
-
-	private async countTasks(
-		files: TFile[]
-	): Promise<{ total: number; completed: number }> {
-		let total = 0;
-		let completed = 0;
-
-		for (const file of files) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			if (!cache?.listItems) continue;
-
-			for (const item of cache.listItems) {
-				if (item.task !== undefined) {
-					total++;
-					if (item.task !== ' ') {
-						completed++;
-					}
-				}
-			}
-		}
-
-		return { total, completed };
+		return dayNames.map((day, index) => ({ day, count: counts[index] }));
 	}
 
 	private buildContent(

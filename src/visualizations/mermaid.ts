@@ -31,24 +31,20 @@ export function generatePieChart(
 	title: string,
 	maxItems: number = 10
 ): string {
-	if (data.length === 0) {
-		return '';
-	}
+	if (data.length === 0) return '';
 
 	const sortedData = [...data]
 		.sort((a, b) => b.value - a.value)
 		.slice(0, maxItems);
 
-	const escapedTitle = escapeLabel(title);
-	const lines = ['```mermaid', `pie showData title ${escapedTitle}`];
+	const items = sortedData
+		.map(item => `    "${escapeLabel(truncateLabel(item.label))}" : ${item.value}`)
+		.join('\n');
 
-	for (const item of sortedData) {
-		const safeLabel = escapeLabel(truncateLabel(item.label));
-		lines.push(`    "${safeLabel}" : ${item.value}`);
-	}
-
-	lines.push('```');
-	return lines.join('\n');
+	return `\`\`\`mermaid
+pie showData title ${escapeLabel(title)}
+${items}
+\`\`\``;
 }
 
 /**
@@ -59,30 +55,21 @@ export function generateBarChart(
 	title: string,
 	maxItems: number = 10
 ): string {
-	if (data.length === 0) {
-		return '';
-	}
+	if (data.length === 0) return '';
 
 	const sortedData = [...data]
 		.sort((a, b) => b.value - a.value)
 		.slice(0, maxItems);
 
-	const escapedTitle = escapeLabel(title);
-	const labels = sortedData
-		.map((d) => `"${escapeLabel(truncateLabel(d.label, 15))}"`)
-		.join(', ');
-	const values = sortedData.map((d) => d.value).join(', ');
+	const labels = sortedData.map(d => `"${escapeLabel(truncateLabel(d.label, 15))}"`).join(', ');
+	const values = sortedData.map(d => d.value).join(', ');
 
-	const lines = [
-		'```mermaid',
-		'xychart-beta horizontal',
-		`    title "${escapedTitle}"`,
-		`    x-axis [${labels}]`,
-		`    bar [${values}]`,
-		'```',
-	];
-
-	return lines.join('\n');
+	return `\`\`\`mermaid
+xychart-beta horizontal
+    title "${escapeLabel(title)}"
+    x-axis [${labels}]
+    bar [${values}]
+\`\`\``;
 }
 
 /**
@@ -92,37 +79,31 @@ export function generateTimeline(
 	events: TimelineEvent[],
 	title: string
 ): string {
-	if (events.length === 0) {
-		return '';
-	}
+	if (events.length === 0) return '';
 
-	const sortedEvents = [...events].sort(
-		(a, b) => a.date.getTime() - b.date.getTime()
-	);
+	const sortedEvents = [...events].sort((a, b) => a.date.getTime() - b.date.getTime());
 
-	const escapedTitle = escapeLabel(title);
-	const lines = ['```mermaid', `timeline`, `    title ${escapedTitle}`];
-
-	const eventsBySection = new Map<string, TimelineEvent[]>();
-
-	for (const event of sortedEvents) {
+	// Group events by section
+	const eventsBySection = sortedEvents.reduce((acc, event) => {
 		const section = event.section ?? 'Events';
-		const existing = eventsBySection.get(section) ?? [];
-		existing.push(event);
-		eventsBySection.set(section, existing);
-	}
+		acc.set(section, [...(acc.get(section) ?? []), event]);
+		return acc;
+	}, new Map<string, TimelineEvent[]>());
 
-	for (const [section, sectionEvents] of eventsBySection) {
-		lines.push(`    section ${escapeLabel(section)}`);
-		for (const event of sectionEvents) {
-			const dateStr = formatDateShort(event.date);
-			const safeLabel = escapeLabel(truncateLabel(event.label, 40));
-			lines.push(`        ${dateStr} : ${safeLabel}`);
-		}
-	}
+	const sections = Array.from(eventsBySection.entries())
+		.map(([section, sectionEvents]) => {
+			const eventLines = sectionEvents
+				.map(e => `        ${formatDateShort(e.date)} : ${escapeLabel(truncateLabel(e.label, 40))}`)
+				.join('\n');
+			return `    section ${escapeLabel(section)}\n${eventLines}`;
+		})
+		.join('\n');
 
-	lines.push('```');
-	return lines.join('\n');
+	return `\`\`\`mermaid
+timeline
+    title ${escapeLabel(title)}
+${sections}
+\`\`\``;
 }
 
 /**

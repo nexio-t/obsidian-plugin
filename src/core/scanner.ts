@@ -134,16 +134,9 @@ export class VaultScanner {
   ): TFile[] {
     return files.filter((file) => {
       const mtime = file.stat.mtime;
-
-      if (after && mtime < after) {
-        return false;
-      }
-
-      if (before && mtime > before) {
-        return false;
-      }
-
-      return true;
+      const afterOk = !after || mtime >= after;
+      const beforeOk = !before || mtime <= before;
+      return afterOk && beforeOk;
     });
   }
 
@@ -155,27 +148,21 @@ export class VaultScanner {
     include?: string[],
     exclude?: string[]
   ): TFile[] {
+    const isInFolder = (path: string, folder: string): boolean =>
+      path.startsWith(folder + '/') || path === folder || path.startsWith(folder);
+
     return files.filter((file) => {
       // Check exclusions first
-      if (exclude && exclude.length > 0) {
-        for (const excludeFolder of exclude) {
-          if (file.path.startsWith(excludeFolder + '/') || file.path.startsWith(excludeFolder)) {
-            return false;
-          }
-        }
+      if (exclude?.some(folder => isInFolder(file.path, folder))) {
+        return false;
       }
 
-      // Check inclusions
-      if (include && include.length > 0) {
-        for (const includeFolder of include) {
-          if (file.path.startsWith(includeFolder + '/') || file.path.startsWith(includeFolder)) {
-            return true;
-          }
-        }
-        return false; // Not in any included folder
+      // Check inclusions (if specified, must match at least one)
+      if (include?.length) {
+        return include.some(folder => isInFolder(file.path, folder));
       }
 
-      return true; // No inclusion filter, file passes
+      return true;
     });
   }
 

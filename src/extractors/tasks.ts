@@ -1,9 +1,9 @@
 import type { TFile, CachedMetadata } from 'obsidian';
-import type { ExtractedTask, TaskMarker, TaskPriority } from '../types';
+import type { ExtractedTask, TaskMarker, TaskPriority, TaskStatus } from '../types';
 
 // Regex patterns for task extraction
 const TASK_LINE_REGEX = /^[\s]*[-*]\s*\[([ xX\-/>!?])\]\s*(.+)$/gm;
-const INLINE_TAG_REGEX = /#[\w\-\/]+/g;
+const INLINE_TAG_REGEX = /#[\w\-/]+/g;
 
 // Due date patterns
 const DUE_DATE_PATTERNS = [
@@ -39,14 +39,19 @@ export class TaskExtractor {
 
     return cache.listItems
       .filter(item => item.task !== undefined)
-      .map(item => ({
-        text: '',
-        completed: item.task === 'x' || item.task === 'X',
-        line: item.position.start.line,
-        filePath: file.path,
-        tags: [],
-        taskMarker: (item.task ?? ' ') as TaskMarker,
-      }));
+      .map(item => {
+        const completed = item.task === 'x' || item.task === 'X';
+        return {
+          text: '',
+          completed,
+          status: (completed ? 'completed' : 'pending') as TaskStatus,
+          line: item.position.start.line,
+          filePath: file.path,
+          fileName: file.basename,
+          tags: [],
+          taskMarker: (item.task ?? ' ') as TaskMarker,
+        };
+      });
   }
 
   /**
@@ -55,7 +60,6 @@ export class TaskExtractor {
    */
   extractWithText(file: TFile, content: string): ExtractedTask[] {
     const tasks: ExtractedTask[] = [];
-    const lines = content.split('\n');
 
     // Reset regex state
     TASK_LINE_REGEX.lastIndex = 0;
@@ -69,11 +73,14 @@ export class TaskExtractor {
       const linesBefore = content.slice(0, match.index).split('\n');
       const lineNumber = linesBefore.length - 1;
 
+      const completed = marker === 'x' || marker === 'X';
       const task: ExtractedTask = {
         text,
-        completed: marker === 'x' || marker === 'X',
+        completed,
+        status: completed ? 'completed' : 'pending',
         line: lineNumber,
         filePath: file.path,
+        fileName: file.basename,
         tags: this.extractInlineTags(text),
         taskMarker: marker,
       };
