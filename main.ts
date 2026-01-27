@@ -80,61 +80,96 @@ export default class VaultInsightsPlugin extends Plugin {
     this.addCommand({
       id: 'generate-daily-summary',
       name: 'Generate daily summary',
-      callback: async () => {
+      callback: () => this.runGenerator('daily summary', () => {
         const generator = new DailySummaryGenerator(this.app, this.settings);
-        await generator.generate();
-      },
+        return generator.generate();
+      }),
     });
 
     // Generate weekly summary
     this.addCommand({
       id: 'generate-weekly-summary',
       name: 'Generate weekly summary',
-      callback: async () => {
+      callback: () => this.runGenerator('weekly summary', () => {
         const generator = new WeeklySummaryGenerator(this.app, this.settings);
-        await generator.generate();
-      },
+        return generator.generate();
+      }),
     });
 
     // Generate todo list
     this.addCommand({
       id: 'generate-todo-list',
       name: 'Generate todo list',
-      callback: async () => {
+      callback: () => this.runGenerator('todo list', () => {
         const generator = new TodoListGenerator(this.app, this.settings);
-        await generator.generate();
-      },
+        return generator.generate();
+      }),
     });
 
     // Generate topic analysis
     this.addCommand({
       id: 'generate-topic-analysis',
       name: 'Analyze vault topics',
-      callback: async () => {
+      callback: () => this.runGenerator('topic analysis', () => {
         const generator = new InsightsGenerator(this.app, this.settings);
-        await generator.generate();
-      },
+        return generator.generate();
+      }),
     });
 
     // Refresh all insights
     this.addCommand({
       id: 'refresh-insights',
       name: 'Refresh all insights',
-      callback: async () => {
-        new Notice('Refreshing all insights...');
-        const daily = new DailySummaryGenerator(this.app, this.settings);
-        const weekly = new WeeklySummaryGenerator(this.app, this.settings);
-        const todo = new TodoListGenerator(this.app, this.settings);
-        const insights = new InsightsGenerator(this.app, this.settings);
-
-        await Promise.all([
-          daily.generate(),
-          weekly.generate(),
-          todo.generate(),
-          insights.generate(),
-        ]);
-        new Notice('All insights refreshed!');
-      },
+      callback: () => this.refreshAllInsights(),
     });
+  }
+
+  /**
+   * Run a generator with error handling.
+   */
+  private async runGenerator(name: string, fn: () => Promise<unknown>): Promise<void> {
+    try {
+      await fn();
+    } catch (error) {
+      console.error(`[VaultInsights] ${name} generation failed:`, error);
+      new Notice(`Failed to generate ${name}. Check console for details.`);
+    }
+  }
+
+  /**
+   * Refresh all insights with proper error handling.
+   * Uses Promise.allSettled to continue even if some generators fail.
+   */
+  private async refreshAllInsights(): Promise<void> {
+    new Notice('Refreshing all insights...');
+
+    const generators = [
+      { name: 'daily summary', gen: new DailySummaryGenerator(this.app, this.settings) },
+      { name: 'weekly summary', gen: new WeeklySummaryGenerator(this.app, this.settings) },
+      { name: 'todo list', gen: new TodoListGenerator(this.app, this.settings) },
+      { name: 'insights', gen: new InsightsGenerator(this.app, this.settings) },
+    ];
+
+    const results = await Promise.allSettled(
+      generators.map(({ gen }) => gen.generate())
+    );
+
+    // Check for failures
+    const failures: string[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const name = generators[index].name;
+        failures.push(name);
+        console.error(`[VaultInsights] ${name} failed:`, result.reason);
+      }
+    });
+
+    if (failures.length === 0) {
+      new Notice('All insights refreshed!');
+    } else if (failures.length === generators.length) {
+      new Notice('All insights failed to generate. Check console for details.');
+    } else {
+      new Notice(`Insights refreshed with ${failures.length} failure(s): ${failures.join(', ')}`);
+    }
   }
 }

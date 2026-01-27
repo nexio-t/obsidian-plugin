@@ -8,10 +8,19 @@ import VaultInsightsPlugin from '../main';
  */
 export class VaultInsightsSettingTab extends PluginSettingTab {
   plugin: VaultInsightsPlugin;
+  private testButtonTimeoutId: number | null = null;
 
   constructor(app: App, plugin: VaultInsightsPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  hide(): void {
+    // Clean up any pending timeouts when settings tab is closed
+    if (this.testButtonTimeoutId !== null) {
+      window.clearTimeout(this.testButtonTimeoutId);
+      this.testButtonTimeoutId = null;
+    }
   }
 
   display(): void {
@@ -304,7 +313,10 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
           } catch {
             button.setButtonText('Failed');
           }
-          setTimeout(() => button.setButtonText('Test'), 2000);
+          this.testButtonTimeoutId = window.setTimeout(() => {
+            button.setButtonText('Test');
+            this.testButtonTimeoutId = null;
+          }, 2000);
         })
       );
   }
