@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+main.js
+*.js.map
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local settings
+.claude/settings.local.json
