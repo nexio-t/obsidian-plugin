@@ -2,6 +2,7 @@ import { ChartDataPoint, TimelineEvent, Connection } from '../types';
 
 /**
  * Escape special characters for Mermaid labels
+ * Handles characters that break Mermaid rendering: #, [, ], {, }, ;, <, >
  */
 export function escapeLabel(label: string): string {
 	return label
@@ -9,7 +10,7 @@ export function escapeLabel(label: string): string {
 		.replace(/"/g, '\\"')
 		.replace(/\n/g, ' ')
 		.replace(/\r/g, '')
-		.replace(/[<>]/g, '')
+		.replace(/[#\[\]{};<>]/g, '')
 		.trim();
 }
 

@@ -1,10 +1,7 @@
-import { App } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import { BaseGenerator } from './base';
-import {
-	VaultInsightsSettings,
-	GeneratedNote,
-	SummaryStats,
-} from '../types';
+import { VaultInsightsSettings, GeneratedNote, SummaryStats } from '../types';
+import { OllamaClient } from '../integrations/ollama';
 import { topicDistributionChart, emptyStateMessage } from '../visualizations';
 
 /**
@@ -13,23 +10,29 @@ import { topicDistributionChart, emptyStateMessage } from '../visualizations';
 export class DailySummaryGenerator extends BaseGenerator {
 	private date: Date;
 
-	constructor(app: App, settings: VaultInsightsSettings, date?: Date) {
-		super(app, settings);
+	constructor(
+		app: App,
+		settings: VaultInsightsSettings,
+		ollamaClient?: OllamaClient,
+		date?: Date
+	) {
+		super(app, settings, ollamaClient);
 		this.date = date ?? new Date();
 	}
 
 	async generate(): Promise<GeneratedNote> {
 		const stats = this.gatherDailyStats();
-		const content = this.buildContent(stats);
+		const aiSummary = await this.generateAISummary(stats.files);
+		const wordCountStats = await this.getWordCountStats(stats.files);
 
 		const dateStr = this.formatDate(this.date);
 		const title = `Daily Summary - ${dateStr}`;
-		const path = `${this.settings.summaryFolder}/Daily/${title}.md`;
+		const { summaryFolder } = this.settings;
 
 		const note: GeneratedNote = {
 			title,
-			path,
-			content,
+			path: `${summaryFolder}/Daily/${title}.md`,
+			content: this.buildContent(stats, aiSummary, wordCountStats),
 			frontmatter: {
 				title,
 				generated: this.getISOTimestamp(),
@@ -43,69 +46,137 @@ export class DailySummaryGenerator extends BaseGenerator {
 
 		await this.save(note);
 		this.notify('Daily summary created!');
-
 		return note;
 	}
 
 	private gatherDailyStats(): SummaryStats {
-		const startOfDay = this.getStartOfDay(this.date);
-		const endOfDay = this.getEndOfDay(this.date);
-
+		const [startOfDay, endOfDay] = [this.getStartOfDay(this.date), this.getEndOfDay(this.date)];
 		const createdFiles = this.getFilesCreatedBetween(startOfDay, endOfDay);
 		const modifiedFiles = this.getFilesModifiedBetween(startOfDay, endOfDay);
-
-		const allTouchedFiles = [...new Set([...createdFiles, ...modifiedFiles])];
-
-		const topics = this.extractTopicsFromFiles(allTouchedFiles);
-		const taskStats = this.countTasksInFiles(allTouchedFiles);
+		const files = [...new Set([...createdFiles, ...modifiedFiles])];
+		const { total, completed } = this.countTasksInFiles(files);
 
 		return {
 			notesCreated: createdFiles.length,
 			notesModified: modifiedFiles.length - createdFiles.length,
-			totalTasks: taskStats.total,
-			completedTasks: taskStats.completed,
-			topTopics: topics,
-			files: allTouchedFiles,
+			totalTasks: total,
+			completedTasks: completed,
+			topTopics: this.extractTopicsFromFiles(files),
+			files,
 		};
 	}
 
-	private buildContent(stats: SummaryStats): string {
-		const sections: string[] = [];
+	/**
+	 * Generate an AI summary from modified files using Ollama.
+	 * Returns null if Ollama is unavailable or disabled.
+	 */
+	private async generateAISummary(files: TFile[]): Promise<string | null> {
+		if (files.length === 0) return null;
+		const content = await this.gatherContentForAI(files, 10, 500);
+		return this.summarizeWithOllamaFallback(content);
+	}
 
-		sections.push(`# Daily Summary - ${this.formatDateDisplay(this.date)}`);
-		sections.push('');
+	/**
+	 * Get the weekly summary link for this date
+	 */
+	private getWeeklySummaryLink(): string | null {
+		const startOfWeek = this.getStartOfWeek(this.date);
+		const endOfWeek = this.getEndOfWeek(this.date);
+		const startStr = this.formatDate(startOfWeek);
+		const endStr = this.formatDate(endOfWeek);
+		const weeklyTitle = `Weekly Summary - ${startStr} to ${endStr}`;
+		const weeklyPath = `${this.settings.summaryFolder}/Weekly/${weeklyTitle}.md`;
 
-		sections.push('## Overview');
-		sections.push('');
-		sections.push('| Metric | Value |');
-		sections.push('|--------|-------|');
-		sections.push(`| Notes Created | ${stats.notesCreated} |`);
-		sections.push(`| Notes Modified | ${stats.notesModified} |`);
-		sections.push(`| Total Tasks | ${stats.totalTasks} |`);
-		sections.push(`| Completed Tasks | ${stats.completedTasks} |`);
-		sections.push('');
-
-		sections.push('## Notes Touched Today');
-		sections.push('');
-		if (stats.files.length === 0) {
-			sections.push(emptyStateMessage('notes'));
-		} else {
-			for (const file of stats.files) {
-				sections.push(`- ${this.wikilink(file.path)}`);
-			}
+		// Check if weekly summary exists
+		const exists = this.app.vault.getAbstractFileByPath(weeklyPath);
+		if (exists) {
+			return this.wikilink(weeklyPath, weeklyTitle);
 		}
-		sections.push('');
+		return null;
+	}
 
-		sections.push('## Topics');
-		sections.push('');
-		if (stats.topTopics.length === 0) {
-			sections.push(emptyStateMessage('topics'));
-		} else {
+	private buildContent(
+		stats: SummaryStats,
+		aiSummary: string | null,
+		wordCountStats: { totalWords: number; mostActiveNote: TFile | null; mostActiveWordCount: number }
+	): string {
+		const { notesCreated, notesModified, totalTasks, completedTasks, files, topTopics } = stats;
+		const { totalWords, mostActiveNote, mostActiveWordCount } = wordCountStats;
+		const { showAISummary, showCharts, showFileList, showTopicTable, maxChartItems } = this.settings;
+		const sections: string[] = [
+			`# Daily Summary - ${this.formatDateDisplay(this.date)}`,
+			'',
+		];
+
+		// Add navigation to weekly summary if it exists
+		const weeklyLink = this.getWeeklySummaryLink();
+		if (weeklyLink) {
+			sections.push(`*Part of ${weeklyLink}*`, '');
+		}
+
+		if (showAISummary && aiSummary) {
 			sections.push(
-				topicDistributionChart(stats.topTopics, this.settings.maxChartItems)
+				'## AI Summary',
+				'',
+				'> [!note] Generated by Ollama',
+				`> ${aiSummary}`,
+				''
 			);
 		}
-		sections.push('');
+
+		sections.push(
+			'## Overview',
+			'',
+			'| Metric | Value |',
+			'|--------|-------|',
+			`| Notes Created | ${notesCreated} |`,
+			`| Notes Modified | ${notesModified} |`,
+			`| Words Written | ${totalWords.toLocaleString()} |`,
+			`| Total Tasks | ${totalTasks} |`,
+			`| Completed Tasks | ${completedTasks} |`,
+			''
+		);
+
+		// Add most active note if available
+		if (mostActiveNote && mostActiveWordCount > 0) {
+			sections.push(
+				`**Most Active Note:** ${this.wikilink(mostActiveNote.path)} (${mostActiveWordCount.toLocaleString()} words)`,
+				''
+			);
+		}
+
+		if (showFileList) {
+			sections.push(
+				'## Notes Touched Today',
+				'',
+				files.length === 0
+					? emptyStateMessage('notes')
+					: files.map(file => `- ${this.wikilink(file.path)}`).join('\n'),
+				''
+			);
+		}
+
+		if (showCharts || showTopicTable) {
+			sections.push('## Topics', '');
+
+			if (topTopics.length === 0) {
+				sections.push(emptyStateMessage('topics'), '');
+			} else {
+				if (showCharts) {
+					sections.push(topicDistributionChart(topTopics, maxChartItems), '');
+				}
+				if (showTopicTable) {
+					sections.push(
+						'| Rank | Topic | Count | Source |',
+						'|------|-------|-------|--------|',
+						...topTopics.slice(0, 10).map((topic, i) =>
+							`| ${i + 1} | ${topic.name} | ${topic.count} | ${topic.source} |`
+						),
+						''
+					);
+				}
+			}
+		}
 
 		return sections.join('\n');
 	}

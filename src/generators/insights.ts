@@ -1,35 +1,34 @@
-import { App } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import { BaseGenerator } from './base';
 import { VaultInsightsSettings, GeneratedNote, TopicData } from '../types';
-import {
-	topicDistributionChart,
-	topicFrequencyChart,
-	folderDistributionChart,
-	emptyStateMessage,
-} from '../visualizations';
+import { OllamaClient } from '../integrations/ollama';
+import { topicDistributionChart, topicFrequencyChart, folderDistributionChart, emptyStateMessage } from '../visualizations';
 
 /**
  * Generator for vault insights and topic analysis
  */
 export class InsightsGenerator extends BaseGenerator {
-	constructor(app: App, settings: VaultInsightsSettings) {
-		super(app, settings);
+	constructor(app: App, settings: VaultInsightsSettings, ollamaClient?: OllamaClient) {
+		super(app, settings, ollamaClient);
 	}
 
 	async generate(): Promise<GeneratedNote> {
-		const vaultStats = this.getVaultStats();
-		const allTopics = this.extractAllTopics();
-		const folderDistribution = this.getFolderDistribution();
-		const content = this.buildContent(vaultStats, allTopics, folderDistribution);
+		// Cache all files once to avoid redundant calls
+		const allFiles = this.getAllMarkdownFiles();
+
+		const vaultStats = this.getVaultStats(allFiles);
+		const allTopics = this.extractAllTopics(allFiles);
+		const folderDistribution = this.getFolderDistribution(allFiles);
+		const aiTopics = await this.extractAITopics(allFiles);
 
 		const dateStr = this.formatDate(new Date());
 		const title = `Vault Insights - ${dateStr}`;
-		const path = `${this.settings.summaryFolder}/${title}.md`;
+		const { summaryFolder } = this.settings;
 
 		const note: GeneratedNote = {
 			title,
-			path,
-			content,
+			path: `${summaryFolder}/${title}.md`,
+			content: this.buildContent(vaultStats, allTopics, folderDistribution, aiTopics),
 			frontmatter: {
 				title,
 				generated: this.getISOTimestamp(),
@@ -40,25 +39,14 @@ export class InsightsGenerator extends BaseGenerator {
 
 		await this.save(note);
 		this.notify('Vault insights generated!');
-
 		return note;
 	}
 
-	private getVaultStats(): { totalNotes: number; totalFolders: number } {
-		const files = this.getAllMarkdownFiles();
-		const folders = new Set<string>();
-
-		for (const file of files) {
-			const folderPath = this.extractFolderPath(file.path);
-			if (folderPath) {
-				folders.add(folderPath);
-			}
-		}
-
-		return {
-			totalNotes: files.length,
-			totalFolders: folders.size,
-		};
+	private getVaultStats(files: TFile[]): { totalNotes: number; totalFolders: number } {
+		const folders = new Set(
+			files.map(file => this.extractFolderPath(file.path)).filter(Boolean)
+		);
+		return { totalNotes: files.length, totalFolders: folders.size };
 	}
 
 	private extractFolderPath(filePath: string): string {
@@ -66,79 +54,70 @@ export class InsightsGenerator extends BaseGenerator {
 		return lastSlash > 0 ? filePath.substring(0, lastSlash) : '';
 	}
 
-	private getFolderDistribution(): Map<string, number> {
-		const files = this.getAllMarkdownFiles();
-		const distribution = new Map<string, number>();
+	/**
+	 * Extract topics using AI (Ollama) from a sample of vault files.
+	 * Returns empty array if Ollama is unavailable or disabled.
+	 */
+	private async extractAITopics(files: TFile[]): Promise<string[]> {
+		if (files.length === 0) return [];
 
-		for (const file of files) {
-			const folderPath = this.extractFolderPath(file.path);
-			const folder = folderPath || '(root)';
-			const topLevel = folder.split('/')[0];
-
-			const current = distribution.get(topLevel) ?? 0;
-			distribution.set(topLevel, current + 1);
-		}
-
-		return distribution;
+		const content = await this.gatherContentForAI(files, 20, 300);
+		return this.extractTopicsWithOllamaFallback(content);
 	}
 
-	private extractAllTopics(): {
+	private getFolderDistribution(files: TFile[]): Map<string, number> {
+		return files.reduce((distribution, file) => {
+			const folderPath = this.extractFolderPath(file.path) || '(root)';
+			const topLevel = folderPath.split('/')[0];
+			distribution.set(topLevel, (distribution.get(topLevel) ?? 0) + 1);
+			return distribution;
+		}, new Map<string, number>());
+	}
+
+	private extractAllTopics(files: TFile[]): {
 		all: TopicData[];
 		bySource: Map<'tags' | 'headings' | 'links', TopicData[]>;
 	} {
 		type Source = 'tags' | 'headings' | 'links';
-		const files = this.getAllMarkdownFiles();
+		const { topicSources, maxTopics } = this.settings;
+
 		const sourceCounts = new Map<Source, Map<string, number>>([
 			['tags', new Map()],
 			['headings', new Map()],
 			['links', new Map()],
 		]);
 
-		// Helper to increment count in a map
-		const increment = (map: Map<string, number>, key: string) => {
+		const increment = (source: Source, key: string) => {
+			const map = sourceCounts.get(source)!;
 			map.set(key, (map.get(key) ?? 0) + 1);
 		};
 
-		// Collect counts by source
 		for (const file of files) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			if (!cache) continue;
 
-			if (this.settings.topicSources.includes('tags')) {
-				for (const tag of cache.tags ?? []) {
-					increment(sourceCounts.get('tags')!, tag.tag);
-				}
+			if (topicSources.includes('tags')) {
+				cache.tags?.forEach(tag => increment('tags', tag.tag));
 			}
-
-			if (this.settings.topicSources.includes('headings')) {
-				for (const heading of cache.headings ?? []) {
-					if (heading.level <= 2) {
-						increment(sourceCounts.get('headings')!, heading.heading);
-					}
-				}
+			if (topicSources.includes('headings')) {
+				cache.headings?.filter(h => h.level <= 2).forEach(h => increment('headings', h.heading));
 			}
-
-			if (this.settings.topicSources.includes('links')) {
-				for (const link of cache.links ?? []) {
-					increment(sourceCounts.get('links')!, link.link);
-				}
+			if (topicSources.includes('links')) {
+				cache.links?.forEach(link => increment('links', link.link));
 			}
 		}
 
-		// Helper to convert counts map to sorted TopicData array
 		const toTopicData = (counts: Map<string, number>, source: Source): TopicData[] =>
 			Array.from(counts.entries())
 				.map(([name, count]) => ({ name, count, source }))
 				.sort((a, b) => b.count - a.count)
-				.slice(0, this.settings.maxTopics);
+				.slice(0, maxTopics);
 
-		// Build bySource map
-		const bySource = new Map<Source, TopicData[]>();
-		for (const [source, counts] of sourceCounts) {
-			bySource.set(source, toTopicData(counts, source));
-		}
+		const bySource = new Map<Source, TopicData[]>(
+			Array.from(sourceCounts.entries()).map(([source, counts]) => [source, toTopicData(counts, source)])
+		);
 
-		// Build combined "all" list (merge all sources, keeping first source encountered)
+		// Merge all sources, keeping first source encountered for each name
 		const allCounts = new Map<string, { count: number; source: Source }>();
 		for (const [source, counts] of sourceCounts) {
 			for (const [name, count] of counts) {
@@ -151,10 +130,10 @@ export class InsightsGenerator extends BaseGenerator {
 			}
 		}
 
-		const all: TopicData[] = Array.from(allCounts.entries())
-			.map(([name, data]) => ({ name, count: data.count, source: data.source }))
+		const all = Array.from(allCounts.entries())
+			.map(([name, { count, source }]) => ({ name, count, source }))
 			.sort((a, b) => b.count - a.count)
-			.slice(0, this.settings.maxTopics);
+			.slice(0, maxTopics);
 
 		return { all, bySource };
 	}
@@ -162,12 +141,27 @@ export class InsightsGenerator extends BaseGenerator {
 	private buildContent(
 		vaultStats: { totalNotes: number; totalFolders: number },
 		topics: { all: TopicData[]; bySource: Map<'tags' | 'headings' | 'links', TopicData[]> },
-		folderDistribution: Map<string, number>
+		folderDistribution: Map<string, number>,
+		aiTopics: string[]
 	): string {
+		const { showAISummary, showCharts, showTopicTable, maxChartItems, topicSources } = this.settings;
 		const sections: string[] = [];
 
 		sections.push('# Vault Insights');
 		sections.push('');
+
+		// Add AI-Identified Topics section if available and enabled
+		if (showAISummary && aiTopics.length > 0) {
+			sections.push('## AI-Identified Topics');
+			sections.push('');
+			sections.push('> [!note] Generated by Ollama');
+			sections.push('> These topics were identified by analyzing a sample of your vault content.');
+			sections.push('');
+			for (const topic of aiTopics) {
+				sections.push(`- ${topic}`);
+			}
+			sections.push('');
+		}
 
 		sections.push('## Vault Overview');
 		sections.push('');
@@ -175,48 +169,52 @@ export class InsightsGenerator extends BaseGenerator {
 		sections.push(`- **Folders:** ${vaultStats.totalFolders}`);
 		sections.push('');
 
-		sections.push('## Content Distribution');
-		sections.push('');
-		sections.push(folderDistributionChart(folderDistribution, this.settings.maxChartItems));
-		sections.push('');
+		if (showCharts) {
+			sections.push('## Content Distribution');
+			sections.push('');
+			sections.push(folderDistributionChart(folderDistribution, maxChartItems));
+			sections.push('');
 
-		sections.push('## Topic Distribution');
-		sections.push('');
-		if (topics.all.length === 0) {
-			sections.push(emptyStateMessage('topics'));
-		} else {
-			sections.push(topicDistributionChart(topics.all, this.settings.maxChartItems));
-		}
-		sections.push('');
+			sections.push('## Topic Distribution');
+			sections.push('');
+			if (topics.all.length === 0) {
+				sections.push(emptyStateMessage('topics'));
+			} else {
+				sections.push(topicDistributionChart(topics.all, maxChartItems));
+			}
+			sections.push('');
 
-		sections.push('## Topic Frequency');
-		sections.push('');
-		if (topics.all.length === 0) {
-			sections.push(emptyStateMessage('topics'));
-		} else {
-			sections.push(topicFrequencyChart(topics.all, this.settings.maxChartItems));
+			sections.push('## Topic Frequency');
+			sections.push('');
+			if (topics.all.length === 0) {
+				sections.push(emptyStateMessage('topics'));
+			} else {
+				sections.push(topicFrequencyChart(topics.all, maxChartItems));
+			}
+			sections.push('');
 		}
-		sections.push('');
 
-		sections.push('## Topic Rankings');
-		sections.push('');
-		if (topics.all.length === 0) {
-			sections.push(emptyStateMessage('topics'));
-		} else {
-			sections.push('| Rank | Topic | Count | Source |');
-			sections.push('|------|-------|-------|--------|');
-			topics.all.forEach((topic, index) => {
-				sections.push(
-					`| ${index + 1} | ${this.escapeTableCell(topic.name)} | ${topic.count} | ${topic.source} |`
-				);
-			});
+		if (showTopicTable) {
+			sections.push('## Topic Rankings');
+			sections.push('');
+			if (topics.all.length === 0) {
+				sections.push(emptyStateMessage('topics'));
+			} else {
+				sections.push('| Rank | Topic | Count | Source |');
+				sections.push('|------|-------|-------|--------|');
+				topics.all.forEach((topic, index) => {
+					sections.push(
+						`| ${index + 1} | ${this.escapeTableCell(topic.name)} | ${topic.count} | ${topic.source} |`
+					);
+				});
+			}
+			sections.push('');
 		}
-		sections.push('');
 
 		sections.push('## Topics by Source');
 		sections.push('');
 
-		if (this.settings.topicSources.includes('tags')) {
+		if (topicSources.includes('tags')) {
 			sections.push('### Tags');
 			sections.push('');
 			const tagTopics = topics.bySource.get('tags') ?? [];
@@ -230,7 +228,7 @@ export class InsightsGenerator extends BaseGenerator {
 			sections.push('');
 		}
 
-		if (this.settings.topicSources.includes('headings')) {
+		if (topicSources.includes('headings')) {
 			sections.push('### Headings');
 			sections.push('');
 			const headingTopics = topics.bySource.get('headings') ?? [];
@@ -244,7 +242,7 @@ export class InsightsGenerator extends BaseGenerator {
 			sections.push('');
 		}
 
-		if (this.settings.topicSources.includes('links')) {
+		if (topicSources.includes('links')) {
 			sections.push('### Links');
 			sections.push('');
 			const linkTopics = topics.bySource.get('links') ?? [];

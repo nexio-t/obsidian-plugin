@@ -354,5 +354,68 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    this.addSectionVisibilitySettings(containerEl);
+  }
+
+  /**
+   * Section visibility settings section.
+   */
+  private addSectionVisibilitySettings(containerEl: HTMLElement): void {
+    containerEl.createEl('h3', { text: 'Section Visibility' });
+
+    const descEl = containerEl.createEl('p', {
+      text: 'Control which sections appear in generated summaries.',
+      cls: 'setting-item-description',
+    });
+    descEl.style.marginBottom = '1em';
+
+    new Setting(containerEl)
+      .setName('Show AI summary')
+      .setDesc('Include AI-generated summary section (requires Ollama).')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showAISummary)
+          .onChange(async (value) => {
+            this.plugin.settings.showAISummary = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Show charts')
+      .setDesc('Include Mermaid charts and visualizations.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showCharts)
+          .onChange(async (value) => {
+            this.plugin.settings.showCharts = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Show file list')
+      .setDesc('Include list of notes touched in the period.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showFileList)
+          .onChange(async (value) => {
+            this.plugin.settings.showFileList = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Show topic table')
+      .setDesc('Include topic rankings table.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showTopicTable)
+          .onChange(async (value) => {
+            this.plugin.settings.showTopicTable = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }

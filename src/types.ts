@@ -69,6 +69,12 @@ export interface VaultInsightsSettings {
   // Visualization settings
   chartType: ChartType;
   maxChartItems: number;
+
+  // Section visibility settings
+  showAISummary: boolean;
+  showCharts: boolean;
+  showFileList: boolean;
+  showTopicTable: boolean;
 }
 
 /**
@@ -102,6 +108,12 @@ export const DEFAULT_SETTINGS: VaultInsightsSettings = {
   // Visualization settings
   chartType: 'mermaid',
   maxChartItems: 10,
+
+  // Section visibility settings (all shown by default)
+  showAISummary: true,
+  showCharts: true,
+  showFileList: true,
+  showTopicTable: true,
 };
 
 // ============================================================================

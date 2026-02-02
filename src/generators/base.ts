@@ -1,5 +1,6 @@
 import { App, Notice, TFile } from 'obsidian';
 import { VaultInsightsSettings, GeneratedNote, NoteFrontmatter, TopicData } from '../types';
+import { OllamaClient } from '../integrations/ollama';
 
 /**
  * Abstract base class for all generators
@@ -7,10 +8,12 @@ import { VaultInsightsSettings, GeneratedNote, NoteFrontmatter, TopicData } from
 export abstract class BaseGenerator {
 	protected app: App;
 	protected settings: VaultInsightsSettings;
+	protected ollamaClient?: OllamaClient;
 
-	constructor(app: App, settings: VaultInsightsSettings) {
+	constructor(app: App, settings: VaultInsightsSettings, ollamaClient?: OllamaClient) {
 		this.app = app;
 		this.settings = settings;
+		this.ollamaClient = ollamaClient;
 	}
 
 	/**
@@ -19,21 +22,36 @@ export abstract class BaseGenerator {
 	abstract generate(): Promise<GeneratedNote>;
 
 	/**
-	 * Save a generated note to the vault
+	 * Save a generated note to the vault and optionally open it
 	 */
-	protected async save(note: GeneratedNote): Promise<TFile> {
+	protected async save(note: GeneratedNote, openAfterSave: boolean = true): Promise<TFile> {
 		await this.ensureFolder(this.getFolderPath(note.path));
 
 		const fullContent = this.buildNoteContent(note);
 
 		const existingFile = this.app.vault.getAbstractFileByPath(note.path);
 
+		let file: TFile;
 		if (existingFile && existingFile instanceof TFile) {
 			await this.app.vault.modify(existingFile, fullContent);
-			return existingFile;
+			file = existingFile;
+		} else {
+			file = await this.app.vault.create(note.path, fullContent);
 		}
 
-		return await this.app.vault.create(note.path, fullContent);
+		if (openAfterSave) {
+			await this.openFile(file);
+		}
+
+		return file;
+	}
+
+	/**
+	 * Open a file in the editor
+	 */
+	protected async openFile(file: TFile): Promise<void> {
+		const leaf = this.app.workspace.getLeaf(false);
+		await leaf.openFile(file);
 	}
 
 	/**
@@ -48,43 +66,35 @@ export abstract class BaseGenerator {
 	 * Build YAML frontmatter string
 	 */
 	private buildFrontmatter(frontmatter: NoteFrontmatter | Record<string, unknown>): string {
-		const lines: string[] = [];
-
-		// Handle NoteFrontmatter type
-		if ('title' in frontmatter && 'generated' in frontmatter && 'generator' in frontmatter) {
-			const fm = frontmatter as NoteFrontmatter;
-			lines.push(`title: "${fm.title}"`);
-			lines.push(`generated: ${fm.generated}`);
-			lines.push(`generator: ${fm.generator}`);
-
-			if (fm.period) {
-				lines.push(`period: ${fm.period}`);
+		const formatValue = (key: string, value: unknown): string => {
+			if (typeof value === 'string') {
+				return key === 'title' ? `${key}: "${value}"` : `${key}: ${value}`;
 			}
+			if (Array.isArray(value)) {
+				return `${key}: [${value.join(', ')}]`;
+			}
+			return `${key}: ${value}`;
+		};
 
-			if (fm.startDate) {
-				lines.push(`startDate: ${fm.startDate}`);
-			}
+		const isNoteFrontmatter = 'title' in frontmatter && 'generated' in frontmatter && 'generator' in frontmatter;
 
-			if (fm.endDate) {
-				lines.push(`endDate: ${fm.endDate}`);
-			}
+		if (isNoteFrontmatter) {
+			const { title, generated, generator, period, startDate, endDate, tags } = frontmatter as NoteFrontmatter;
+			const lines = [
+				`title: "${title}"`,
+				`generated: ${generated}`,
+				`generator: ${generator}`,
+			];
 
-			if (fm.tags && fm.tags.length > 0) {
-				lines.push(`tags: [${fm.tags.join(', ')}]`);
-			}
-		} else {
-			// Handle generic Record<string, unknown>
-			for (const [key, value] of Object.entries(frontmatter)) {
-				if (typeof value === 'string') {
-					lines.push(`${key}: "${value}"`);
-				} else if (Array.isArray(value)) {
-					lines.push(`${key}: [${value.join(', ')}]`);
-				} else {
-					lines.push(`${key}: ${value}`);
-				}
-			}
+			if (period) lines.push(`period: ${period}`);
+			if (startDate) lines.push(`startDate: ${startDate}`);
+			if (endDate) lines.push(`endDate: ${endDate}`);
+			if (tags?.length) lines.push(`tags: [${tags.join(', ')}]`);
+
+			return lines.join('\n') + '\n';
 		}
 
+		const lines = Object.entries(frontmatter).map(([key, value]) => formatValue(key, value));
 		return lines.join('\n') + '\n';
 	}
 
@@ -266,51 +276,36 @@ export abstract class BaseGenerator {
 	 */
 	protected extractTopicsFromFiles(files: TFile[]): TopicData[] {
 		const topicCounts = new Map<string, { count: number; source: 'tags' | 'headings' | 'links' }>();
+		const { topicSources, maxTopics } = this.settings;
+
+		const increment = (name: string, source: 'tags' | 'headings' | 'links') => {
+			const existing = topicCounts.get(name);
+			topicCounts.set(name, { count: (existing?.count ?? 0) + 1, source });
+		};
 
 		for (const file of files) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			if (!cache) continue;
 
-			// Extract tags
-			if (this.settings.topicSources.includes('tags')) {
-				for (const tag of cache.tags ?? []) {
-					const existing = topicCounts.get(tag.tag);
-					topicCounts.set(tag.tag, {
-						count: (existing?.count ?? 0) + 1,
-						source: 'tags',
-					});
-				}
+			if (topicSources.includes('tags')) {
+				cache.tags?.forEach(tag => increment(tag.tag, 'tags'));
 			}
 
-			// Extract headings (level 1-2 only)
-			if (this.settings.topicSources.includes('headings')) {
-				for (const heading of cache.headings ?? []) {
-					if (heading.level <= 2) {
-						const existing = topicCounts.get(heading.heading);
-						topicCounts.set(heading.heading, {
-							count: (existing?.count ?? 0) + 1,
-							source: 'headings',
-						});
-					}
-				}
+			if (topicSources.includes('headings')) {
+				cache.headings
+					?.filter(h => h.level <= 2)
+					.forEach(h => increment(h.heading, 'headings'));
 			}
 
-			// Extract links
-			if (this.settings.topicSources.includes('links')) {
-				for (const link of cache.links ?? []) {
-					const existing = topicCounts.get(link.link);
-					topicCounts.set(link.link, {
-						count: (existing?.count ?? 0) + 1,
-						source: 'links',
-					});
-				}
+			if (topicSources.includes('links')) {
+				cache.links?.forEach(link => increment(link.link, 'links'));
 			}
 		}
 
 		return Array.from(topicCounts.entries())
-			.map(([name, data]) => ({ name, count: data.count, source: data.source }))
+			.map(([name, { count, source }]) => ({ name, count, source }))
 			.sort((a, b) => b.count - a.count)
-			.slice(0, this.settings.maxTopics);
+			.slice(0, maxTopics);
 	}
 
 	/**
@@ -318,21 +313,127 @@ export abstract class BaseGenerator {
 	 * Shared by daily and weekly summary generators.
 	 */
 	protected countTasksInFiles(files: TFile[]): { total: number; completed: number } {
-		let total = 0;
-		let completed = 0;
-
-		for (const file of files) {
+		const tasks = files.flatMap(file => {
 			const cache = this.app.metadataCache.getFileCache(file);
-			if (!cache?.listItems) continue;
+			return cache?.listItems?.filter(item => item.task !== undefined) ?? [];
+		});
 
-			for (const item of cache.listItems) {
-				if (item.task !== undefined) {
-					total++;
-					if (item.task !== ' ') completed++;
-				}
+		return {
+			total: tasks.length,
+			completed: tasks.filter(item => item.task !== ' ').length,
+		};
+	}
+
+	/**
+	 * Check if Ollama is available and enabled.
+	 */
+	protected async isOllamaAvailable(): Promise<boolean> {
+		if (!this.settings.ollamaEnabled || !this.ollamaClient) return false;
+		return this.ollamaClient.isAvailable();
+	}
+
+	/**
+	 * Generate a summary using Ollama with graceful fallback.
+	 * Returns the summary string or null if unavailable.
+	 */
+	protected async summarizeWithOllamaFallback(content: string): Promise<string | null> {
+		if (!(await this.isOllamaAvailable())) {
+			return null;
+		}
+
+		try {
+			const result = await this.ollamaClient!.summarize(content);
+			return result.summary || null;
+		} catch (error) {
+			console.warn('[VaultInsights] Ollama summarization failed:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Extract topics using Ollama with graceful fallback.
+	 * Returns extracted topics or empty array if unavailable.
+	 */
+	protected async extractTopicsWithOllamaFallback(content: string): Promise<string[]> {
+		if (!(await this.isOllamaAvailable())) {
+			return [];
+		}
+
+		try {
+			const result = await this.ollamaClient!.extractTopics(content);
+			return result.topics;
+		} catch (error) {
+			console.warn('[VaultInsights] Ollama topic extraction failed:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Gather content from files for AI processing.
+	 * Limits content to prevent huge prompts.
+	 */
+	protected async gatherContentForAI(
+		files: TFile[],
+		maxFiles: number = 10,
+		maxCharsPerFile: number = 500
+	): Promise<string> {
+		const contentParts: string[] = [];
+		const filesToProcess = files.slice(0, maxFiles);
+
+		for (const file of filesToProcess) {
+			try {
+				const content = await this.app.vault.cachedRead(file);
+				const truncated = content.slice(0, maxCharsPerFile);
+				contentParts.push(`## ${file.basename}\n${truncated}`);
+			} catch {
+				// Skip files that can't be read
 			}
 		}
 
-		return { total, completed };
+		return contentParts.join('\n\n');
+	}
+
+	/**
+	 * Get word count from file content
+	 */
+	protected async getWordCount(file: TFile): Promise<number> {
+		try {
+			const content = await this.app.vault.cachedRead(file);
+			// Remove markdown syntax and count words
+			const cleanContent = content
+				.replace(/```[\s\S]*?```/g, '') // Remove code blocks
+				.replace(/`[^`]+`/g, '') // Remove inline code
+				.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Replace links with text
+				.replace(/[#*_~`]/g, '') // Remove markdown symbols
+				.replace(/\s+/g, ' ') // Normalize whitespace
+				.trim();
+			return cleanContent.split(/\s+/).filter(word => word.length > 0).length;
+		} catch {
+			return 0;
+		}
+	}
+
+	/**
+	 * Get total word count and most active note from a set of files
+	 */
+	protected async getWordCountStats(files: TFile[]): Promise<{
+		totalWords: number;
+		mostActiveNote: TFile | null;
+		mostActiveWordCount: number;
+	}> {
+		let totalWords = 0;
+		let mostActiveNote: TFile | null = null;
+		let mostActiveWordCount = 0;
+
+		for (const file of files) {
+			const wordCount = await this.getWordCount(file);
+			totalWords += wordCount;
+			if (wordCount > mostActiveWordCount) {
+				mostActiveWordCount = wordCount;
+				mostActiveNote = file;
+			}
+		}
+
+		return { totalWords, mostActiveNote, mostActiveWordCount };
 	}
 }
