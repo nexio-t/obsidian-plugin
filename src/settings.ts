@@ -95,7 +95,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Weekly lookback days')
-      .setDesc('Number of days to include in weekly summary.')
+      .setDesc('Number of days to include in weekly summary (rolling mode).')
       .addSlider((slider) =>
         slider
           .setLimits(7, 14, 1)
@@ -103,6 +103,18 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
           .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.weeklyLookbackDays = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Use calendar weeks')
+      .setDesc('When enabled, weekly summaries cover Sunday–Saturday. When disabled, uses rolling lookback days.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.weeklyUseCalendarWeeks)
+          .onChange(async (value) => {
+            this.plugin.settings.weeklyUseCalendarWeeks = value;
             await this.plugin.saveSettings();
           })
       );
@@ -302,14 +314,9 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
         button.setButtonText('Test').onClick(async () => {
           button.setButtonText('Testing...');
           try {
-            const response = await fetch(
-              `${this.plugin.settings.ollamaUrl}/api/tags`
-            );
-            if (response.ok) {
-              button.setButtonText('Connected!');
-            } else {
-              button.setButtonText('Failed');
-            }
+            this.plugin.ollamaClient.resetAvailabilityCache();
+            const ok = await this.plugin.ollamaClient.isAvailable();
+            button.setButtonText(ok ? 'Connected!' : 'Failed');
           } catch {
             button.setButtonText('Failed');
           }
@@ -333,7 +340,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .addDropdown((dropdown) =>
         dropdown
           .addOption('mermaid', 'Mermaid (Native)')
-          .addOption('chartjs', 'Chart.js (Richer)')
+          .addOption('chartjs', 'Chart.js (Not yet supported)')
           .setValue(this.plugin.settings.chartType)
           .onChange(async (value) => {
             this.plugin.settings.chartType = value as ChartType;

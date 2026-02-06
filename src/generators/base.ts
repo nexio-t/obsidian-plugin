@@ -217,32 +217,42 @@ export abstract class BaseGenerator {
 	}
 
 	/**
-	 * Get all markdown files in the vault
+	 * Get all markdown files in the vault, excluding generated files
 	 */
 	protected getAllMarkdownFiles(): TFile[] {
 		return this.app.vault.getMarkdownFiles();
 	}
 
 	/**
-	 * Get files modified within a time range
+	 * Get all markdown files excluding the Insights folder
+	 */
+	protected getUserMarkdownFiles(): TFile[] {
+		const { summaryFolder } = this.settings;
+		return this.getAllMarkdownFiles().filter(
+			file => !this.isPathInFolder(file.path, summaryFolder)
+		);
+	}
+
+	/**
+	 * Get files modified within a time range (excludes generated files)
 	 */
 	protected getFilesModifiedBetween(
 		startTime: number,
 		endTime: number
 	): TFile[] {
-		return this.getAllMarkdownFiles().filter(
+		return this.getUserMarkdownFiles().filter(
 			(file) => file.stat.mtime >= startTime && file.stat.mtime <= endTime
 		);
 	}
 
 	/**
-	 * Get files created within a time range
+	 * Get files created within a time range (excludes generated files)
 	 */
 	protected getFilesCreatedBetween(
 		startTime: number,
 		endTime: number
 	): TFile[] {
-		return this.getAllMarkdownFiles().filter(
+		return this.getUserMarkdownFiles().filter(
 			(file) => file.stat.ctime >= startTime && file.stat.ctime <= endTime
 		);
 	}
@@ -252,7 +262,7 @@ export abstract class BaseGenerator {
 	 */
 	protected isFileInFolders(file: TFile, folders: string[]): boolean {
 		if (folders.length === 0) return true;
-		return folders.some((folder) => file.path.startsWith(folder));
+		return folders.some((folder) => this.isPathInFolder(file.path, folder));
 	}
 
 	/**
@@ -260,7 +270,7 @@ export abstract class BaseGenerator {
 	 */
 	protected isFileExcluded(file: TFile, excludeFolders: string[]): boolean {
 		if (excludeFolders.length === 0) return false;
-		return excludeFolders.some((folder) => file.path.startsWith(folder));
+		return excludeFolders.some((folder) => this.isPathInFolder(file.path, folder));
 	}
 
 	/**
@@ -273,10 +283,12 @@ export abstract class BaseGenerator {
 	/**
 	 * Extract topics from files based on configured sources.
 	 * Shared by daily and weekly summary generators.
+	 * Excludes files in the summaryFolder to avoid analyzing our own generated content.
 	 */
 	protected extractTopicsFromFiles(files: TFile[]): TopicData[] {
 		const topicCounts = new Map<string, { count: number; source: 'tags' | 'headings' | 'links' }>();
-		const { topicSources, maxTopics } = this.settings;
+		const { topicSources, maxTopics, summaryFolder, excludedTags } = this.settings;
+		const excluded = new Set(excludedTags.map(tag => this.normalizeTag(tag).toLowerCase()));
 
 		const increment = (name: string, source: 'tags' | 'headings' | 'links') => {
 			const existing = topicCounts.get(name);
@@ -284,11 +296,19 @@ export abstract class BaseGenerator {
 		};
 
 		for (const file of files) {
+			// Skip files in the Insights folder to avoid analyzing generated content
+			if (this.isPathInFolder(file.path, summaryFolder)) continue;
+
 			const cache = this.app.metadataCache.getFileCache(file);
 			if (!cache) continue;
 
 			if (topicSources.includes('tags')) {
-				cache.tags?.forEach(tag => increment(tag.tag, 'tags'));
+				cache.tags?.forEach(tag => {
+					const normalized = this.normalizeTag(tag.tag);
+					if (!excluded.has(normalized.toLowerCase())) {
+						increment(normalized, 'tags');
+					}
+				});
 			}
 
 			if (topicSources.includes('headings')) {
@@ -379,15 +399,21 @@ export abstract class BaseGenerator {
 	): Promise<string> {
 		const contentParts: string[] = [];
 		const filesToProcess = files.slice(0, maxFiles);
-
-		for (const file of filesToProcess) {
-			try {
-				const content = await this.app.vault.cachedRead(file);
-				const truncated = content.slice(0, maxCharsPerFile);
-				contentParts.push(`## ${file.basename}\n${truncated}`);
-			} catch {
-				// Skip files that can't be read
+		const results = await this.mapWithConcurrency(
+			filesToProcess,
+			5,
+			async (file) => {
+				try {
+					const content = await this.app.vault.cachedRead(file);
+					const truncated = content.slice(0, maxCharsPerFile);
+					return `## ${file.basename}\n${truncated}`;
+				} catch {
+					return '';
+				}
 			}
+		);
+		for (const part of results) {
+			if (part) contentParts.push(part);
 		}
 
 		return contentParts.join('\n\n');
@@ -421,19 +447,54 @@ export abstract class BaseGenerator {
 		mostActiveNote: TFile | null;
 		mostActiveWordCount: number;
 	}> {
+		const results = await this.mapWithConcurrency(
+			files,
+			5,
+			async (file) => ({ file, wordCount: await this.getWordCount(file) })
+		);
+
 		let totalWords = 0;
 		let mostActiveNote: TFile | null = null;
 		let mostActiveWordCount = 0;
 
-		for (const file of files) {
-			const wordCount = await this.getWordCount(file);
-			totalWords += wordCount;
-			if (wordCount > mostActiveWordCount) {
-				mostActiveWordCount = wordCount;
-				mostActiveNote = file;
+		for (const result of results) {
+			totalWords += result.wordCount;
+			if (result.wordCount > mostActiveWordCount) {
+				mostActiveWordCount = result.wordCount;
+				mostActiveNote = result.file;
 			}
 		}
 
 		return { totalWords, mostActiveNote, mostActiveWordCount };
+	}
+
+	protected normalizeTag(tag: string): string {
+		return tag.startsWith('#') ? tag.slice(1) : tag;
+	}
+
+	protected isPathInFolder(path: string, folder: string): boolean {
+		const normalized = folder.replace(/\/+$/, '');
+		if (!normalized) return false;
+		return path === normalized || path.startsWith(normalized + '/');
+	}
+
+	private async mapWithConcurrency<T, R>(
+		items: T[],
+		limit: number,
+		fn: (item: T) => Promise<R>
+	): Promise<R[]> {
+		if (items.length === 0) return [];
+		const results = new Array<R>(items.length);
+		let index = 0;
+
+		const workers = new Array(Math.min(limit, items.length)).fill(0).map(async () => {
+			while (index < items.length) {
+				const current = index++;
+				results[current] = await fn(items[current]);
+			}
+		});
+
+		await Promise.all(workers);
+		return results;
 	}
 }

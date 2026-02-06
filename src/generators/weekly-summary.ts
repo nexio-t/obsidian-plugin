@@ -21,20 +21,27 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 	}
 
 	async generate(): Promise<GeneratedNote> {
-		const [startOfWeek, endOfWeek] = [this.getStartOfWeek(this.date), this.getEndOfWeek(this.date)];
-		const stats = this.gatherWeeklyStats(startOfWeek, endOfWeek);
-		const dailyActivity = this.calculateDailyActivity(stats.files, startOfWeek, endOfWeek);
+		const { weeklyUseCalendarWeeks } = this.settings;
+		const endOfPeriod = weeklyUseCalendarWeeks
+			? this.getEndOfWeek(this.date)
+			: this.getEndOfDay(this.date);
+		const startOfPeriod = weeklyUseCalendarWeeks
+			? this.getStartOfWeek(this.date)
+			: this.getRollingPeriodStart(endOfPeriod);
+
+		const stats = this.gatherWeeklyStats(startOfPeriod, endOfPeriod);
+		const dailyActivity = this.calculateDailyActivity(stats.files, startOfPeriod, endOfPeriod);
 		const aiSummary = await this.generateAISummary(stats.files);
 		const wordCountStats = await this.getWordCountStats(stats.files);
 
-		const [startStr, endStr] = [this.formatDate(startOfWeek), this.formatDate(endOfWeek)];
+		const [startStr, endStr] = [this.formatDate(startOfPeriod), this.formatDate(endOfPeriod)];
 		const title = `Weekly Summary - ${startStr} to ${endStr}`;
 		const { summaryFolder } = this.settings;
 
 		const note: GeneratedNote = {
 			title,
 			path: `${summaryFolder}/Weekly/${title}.md`,
-			content: this.buildContent(stats, dailyActivity, startOfWeek, endOfWeek, aiSummary, wordCountStats),
+			content: this.buildContent(stats, dailyActivity, startOfPeriod, endOfPeriod, aiSummary, wordCountStats),
 			frontmatter: {
 				title,
 				generated: this.getISOTimestamp(),
@@ -57,10 +64,12 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 		const modifiedFiles = this.getFilesModifiedBetween(startTime, endTime);
 		const files = [...new Set([...createdFiles, ...modifiedFiles])];
 		const { total, completed } = this.countTasksInFiles(files);
+		const createdPaths = new Set(createdFiles.map(file => file.path));
+		const modifiedOnlyCount = modifiedFiles.filter(file => !createdPaths.has(file.path)).length;
 
 		return {
 			notesCreated: createdFiles.length,
-			notesModified: modifiedFiles.length - createdFiles.length,
+			notesModified: modifiedOnlyCount,
 			totalTasks: total,
 			completedTasks: completed,
 			topTopics: this.extractTopicsFromFiles(files),
@@ -78,6 +87,13 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 			.forEach(mtime => counts[mtime.getDay()]++);
 
 		return dayNames.map((day, index) => ({ day, count: counts[index] }));
+	}
+
+	private getRollingPeriodStart(endOfPeriod: Date): Date {
+		const lookbackDays = Math.max(1, this.settings.weeklyLookbackDays);
+		return new Date(
+			this.getStartOfDay(new Date(endOfPeriod.getTime() - (lookbackDays - 1) * 24 * 60 * 60 * 1000))
+		);
 	}
 
 	/**
@@ -122,7 +138,13 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 	): string {
 		const { notesCreated, notesModified, totalTasks, completedTasks, files, topTopics } = stats;
 		const { totalWords, mostActiveNote, mostActiveWordCount } = wordCountStats;
-		const { maxChartItems, showAISummary, showCharts, showFileList, showTopicTable } = this.settings;
+		const { maxChartItems, showAISummary, showCharts, showFileList, showTopicTable, chartType, weeklyLookbackDays, weeklyUseCalendarWeeks } = this.settings;
+		const chartsEnabled = showCharts && chartType === 'mermaid';
+		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const notesSectionTitle =
+			weeklyUseCalendarWeeks || weeklyLookbackDays === 7
+				? 'Notes Touched This Week'
+				: 'Notes Touched in Period';
 		const sections: string[] = [
 			`# Weekly Summary - ${this.formatDateDisplay(startOfWeek)} to ${this.formatDateDisplay(endOfWeek)}`,
 			'',
@@ -159,7 +181,11 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 			);
 		}
 
-		if (showCharts) {
+		if (chartsUnavailable) {
+			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
+		}
+
+		if (chartsEnabled) {
 			sections.push(
 				'## Daily Activity',
 				'',
@@ -193,7 +219,7 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 
 		// Notes section
 		if (showFileList) {
-			sections.push('## Notes Touched This Week', '');
+			sections.push(`## ${notesSectionTitle}`, '');
 			if (files.length === 0) {
 				sections.push(emptyStateMessage('notes'));
 			} else {

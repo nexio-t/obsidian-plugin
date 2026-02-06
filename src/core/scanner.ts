@@ -148,8 +148,12 @@ export class VaultScanner {
     include?: string[],
     exclude?: string[]
   ): TFile[] {
-    const isInFolder = (path: string, folder: string): boolean =>
-      path.startsWith(folder + '/') || path === folder || path.startsWith(folder);
+    const normalizedFolder = (folder: string): string => folder.replace(/\/+$/, '');
+    const isInFolder = (path: string, folder: string): boolean => {
+      const normalized = normalizedFolder(folder);
+      if (!normalized) return false;
+      return path === normalized || path.startsWith(normalized + '/');
+    };
 
     return files.filter((file) => {
       // Check exclusions first

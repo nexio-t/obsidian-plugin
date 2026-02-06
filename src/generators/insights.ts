@@ -13,8 +13,12 @@ export class InsightsGenerator extends BaseGenerator {
 	}
 
 	async generate(): Promise<GeneratedNote> {
-		// Cache all files once to avoid redundant calls
-		const allFiles = this.getAllMarkdownFiles();
+		const { summaryFolder } = this.settings;
+
+		// Cache all files once, excluding generated files in the Insights folder
+		const allFiles = this.getAllMarkdownFiles().filter(
+			file => !file.path.startsWith(summaryFolder)
+		);
 
 		const vaultStats = this.getVaultStats(allFiles);
 		const allTopics = this.extractAllTopics(allFiles);
@@ -23,7 +27,6 @@ export class InsightsGenerator extends BaseGenerator {
 
 		const dateStr = this.formatDate(new Date());
 		const title = `Vault Insights - ${dateStr}`;
-		const { summaryFolder } = this.settings;
 
 		const note: GeneratedNote = {
 			title,
@@ -79,7 +82,8 @@ export class InsightsGenerator extends BaseGenerator {
 		bySource: Map<'tags' | 'headings' | 'links', TopicData[]>;
 	} {
 		type Source = 'tags' | 'headings' | 'links';
-		const { topicSources, maxTopics } = this.settings;
+		const { topicSources, maxTopics, excludedTags } = this.settings;
+		const excluded = new Set(excludedTags.map(tag => this.normalizeTag(tag).toLowerCase()));
 
 		const sourceCounts = new Map<Source, Map<string, number>>([
 			['tags', new Map()],
@@ -97,7 +101,12 @@ export class InsightsGenerator extends BaseGenerator {
 			if (!cache) continue;
 
 			if (topicSources.includes('tags')) {
-				cache.tags?.forEach(tag => increment('tags', tag.tag));
+				cache.tags?.forEach(tag => {
+					const normalized = this.normalizeTag(tag.tag);
+					if (!excluded.has(normalized.toLowerCase())) {
+						increment('tags', normalized);
+					}
+				});
 			}
 			if (topicSources.includes('headings')) {
 				cache.headings?.filter(h => h.level <= 2).forEach(h => increment('headings', h.heading));
@@ -144,7 +153,9 @@ export class InsightsGenerator extends BaseGenerator {
 		folderDistribution: Map<string, number>,
 		aiTopics: string[]
 	): string {
-		const { showAISummary, showCharts, showTopicTable, maxChartItems, topicSources } = this.settings;
+		const { showAISummary, showCharts, showTopicTable, maxChartItems, topicSources, chartType } = this.settings;
+		const chartsEnabled = showCharts && chartType === 'mermaid';
+		const chartsUnavailable = showCharts && chartType !== 'mermaid';
 		const sections: string[] = [];
 
 		sections.push('# Vault Insights');
@@ -169,7 +180,12 @@ export class InsightsGenerator extends BaseGenerator {
 		sections.push(`- **Folders:** ${vaultStats.totalFolders}`);
 		sections.push('');
 
-		if (showCharts) {
+		if (chartsUnavailable) {
+			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.');
+			sections.push('');
+		}
+
+		if (chartsEnabled) {
 			sections.push('## Content Distribution');
 			sections.push('');
 			sections.push(folderDistributionChart(folderDistribution, maxChartItems));

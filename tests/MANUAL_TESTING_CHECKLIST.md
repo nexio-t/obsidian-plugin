@@ -56,7 +56,8 @@ Before testing, ensure you have:
 - [ ] "Enable Weekly Summaries" toggle works
 - [ ] "Summary Generation Time" field accepts HH:MM format
 - [ ] "Daily Lookback Days" accepts valid numbers
-- [ ] "Weekly Lookback Days" accepts valid numbers
+- [ ] "Weekly Lookback Days" accepts valid numbers (rolling mode)
+- [ ] "Use Calendar Weeks" toggle switches between calendar vs rolling behavior
 
 ### Todo Settings Section
 
@@ -124,6 +125,7 @@ Before testing, ensure you have:
 - [ ] Each command shows appropriate Notice on failure
 - [ ] Commands do not hang or freeze Obsidian
 - [ ] Commands work when vault is empty (graceful empty state)
+- [ ] Scheduled generation runs at configured time (daily/weekly enabled)
 
 ---
 
@@ -141,6 +143,7 @@ Before testing, ensure you have:
 - [ ] Title header shows formatted date (e.g., "January 15, 2024")
 - [ ] Overview section shows: Notes Created, Notes Modified, Words Written, Total Tasks, Completed Tasks
 - [ ] Most Active Note link appears when applicable
+- [ ] Period reflects daily lookback settings in frontmatter
 
 ### File List Section
 
@@ -176,7 +179,8 @@ Before testing, ensure you have:
 
 - [ ] Command creates note in configured folder
 - [ ] Note is created with correct filename: `Weekly Summary - YYYY-MM-DD to YYYY-MM-DD.md`
-- [ ] Week boundaries are correct (Sunday to Saturday)
+- [ ] Calendar mode: Week boundaries are correct (Sunday to Saturday)
+- [ ] Rolling mode: Date range matches weekly lookback days setting
 
 ### Content Verification
 
@@ -184,6 +188,7 @@ Before testing, ensure you have:
 - [ ] Title shows date range in readable format
 - [ ] Daily Summary links appear if daily summaries exist
 - [ ] Overview metrics are accurate for the week
+- [ ] Period reflects selected calendar/rolling mode in frontmatter
 
 ### Daily Activity Chart
 

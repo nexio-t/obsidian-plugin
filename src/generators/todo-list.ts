@@ -3,15 +3,14 @@ import { BaseGenerator } from './base';
 import { VaultInsightsSettings, GeneratedNote, TaskItem } from '../types';
 import { OllamaClient } from '../integrations/ollama';
 import { taskCompletionChart, emptyStateMessage } from '../visualizations';
-
-const TASK_REGEX = /^[\s]*[-*]\s*\[([ xX])\]\s*(.+)$/gm;
-const DUE_DATE_REGEX = /📅\s*(\d{4}-\d{2}-\d{2})|due::\s*(\d{4}-\d{2}-\d{2})/;
-const TAG_REGEX = /#[\w-]+/g;
+import { TaskExtractor } from '../extractors/tasks';
 
 /**
  * Generator for aggregated todo lists
  */
 export class TodoListGenerator extends BaseGenerator {
+	private taskExtractor = new TaskExtractor();
+
 	constructor(app: App, settings: VaultInsightsSettings, ollamaClient?: OllamaClient) {
 		super(app, settings, ollamaClient);
 	}
@@ -42,11 +41,14 @@ export class TodoListGenerator extends BaseGenerator {
 		return note;
 	}
 
-	private async extractAllTasks(): Promise<TaskItem[]> {
-		const { todoSourceFolders, todoExcludeFolders } = this.settings;
+	protected async extractAllTasks(): Promise<TaskItem[]> {
+		const { todoSourceFolders, todoExcludeFolders, summaryFolder } = this.settings;
+
+		// Always exclude the Insights folder to avoid scanning our own generated files
+		const allExcludeFolders = [...todoExcludeFolders, summaryFolder];
 
 		const targetFiles = this.getAllMarkdownFiles().filter(file => {
-			if (this.isFileExcluded(file, todoExcludeFolders)) return false;
+			if (this.isFileExcluded(file, allExcludeFolders)) return false;
 			if (todoSourceFolders.length > 0) return this.isFileInFolders(file, todoSourceFolders);
 			return true;
 		});
@@ -55,34 +57,26 @@ export class TodoListGenerator extends BaseGenerator {
 		return taskArrays.flat();
 	}
 
-	private async extractTasksFromFile(file: TFile): Promise<TaskItem[]> {
+	protected async extractTasksFromFile(file: TFile): Promise<TaskItem[]> {
 		const content = await this.app.vault.cachedRead(file);
-		const lines = content.split('\n');
+		const tasks = this.taskExtractor.extractWithText(file, content);
 
-		return lines.reduce<TaskItem[]>((tasks, line, index) => {
-			TASK_REGEX.lastIndex = 0;
-			const match = TASK_REGEX.exec(line);
-			if (!match) return tasks;
-
-			const text = match[2].trim();
-			const dueDateMatch = DUE_DATE_REGEX.exec(text);
-
-			tasks.push({
-				text,
-				completed: match[1].toLowerCase() === 'x',
-				file,
-				line: index + 1,
-				tags: text.match(TAG_REGEX) ?? undefined,
-				dueDate: dueDateMatch ? (dueDateMatch[1] || dueDateMatch[2]) : undefined,
-			});
-			return tasks;
-		}, []);
+		return tasks.map((task) => ({
+			text: task.text,
+			completed: task.completed,
+			file,
+			line: task.line + 1,
+			tags: task.tags.length > 0 ? task.tags : undefined,
+			dueDate: task.dueDate ? this.formatDate(task.dueDate) : undefined,
+		}));
 	}
 
-	private buildContent(tasks: TaskItem[]): string {
+	protected buildContent(tasks: TaskItem[]): string {
 		const pendingTasks = tasks.filter(t => !t.completed);
 		const completedTasks = tasks.filter(t => t.completed);
-		const { todoIncludeCompleted } = this.settings;
+		const { todoIncludeCompleted, showCharts, chartType } = this.settings;
+		const chartsEnabled = showCharts && chartType === 'mermaid';
+		const chartsUnavailable = showCharts && chartType !== 'mermaid';
 
 		const sections: string[] = [
 			'# Aggregated Todo List',
@@ -95,7 +89,11 @@ export class TodoListGenerator extends BaseGenerator {
 			'',
 		];
 
-		if (tasks.length > 0) {
+		if (chartsUnavailable) {
+			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
+		}
+
+		if (chartsEnabled && tasks.length > 0) {
 			sections.push(taskCompletionChart(completedTasks.length, pendingTasks.length), '');
 		}
 
@@ -123,7 +121,7 @@ export class TodoListGenerator extends BaseGenerator {
 		return sections.join('\n');
 	}
 
-	private groupTasks(tasks: TaskItem[]): Map<string, TaskItem[]> {
+	protected groupTasks(tasks: TaskItem[]): Map<string, TaskItem[]> {
 		const { todoGroupBy } = this.settings;
 
 		const getGroupKey = (task: TaskItem): string => {
@@ -152,12 +150,12 @@ export class TodoListGenerator extends BaseGenerator {
 	/**
 	 * Check if a due date is in the past (overdue)
 	 */
-	private isOverdue(dueDate: string): boolean {
+	protected isOverdue(dueDate: string): boolean {
 		const today = this.formatDate(new Date());
 		return dueDate < today;
 	}
 
-	private formatGroupedTasks(grouped: Map<string, TaskItem[]>, completed: boolean): string {
+	protected formatGroupedTasks(grouped: Map<string, TaskItem[]>, completed: boolean): string {
 		const { todoGroupBy } = this.settings;
 		const checkbox = completed ? '[x]' : '[ ]';
 

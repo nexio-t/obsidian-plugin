@@ -3,6 +3,7 @@ import { generatePieChart, generateBarChart } from './mermaid';
 
 /**
  * Generate a topic distribution pie chart
+ * Only shows chart when there are multiple topics to compare
  */
 export function topicDistributionChart(
 	topics: TopicData[],
@@ -10,6 +11,11 @@ export function topicDistributionChart(
 ): string {
 	if (topics.length === 0) {
 		return emptyStateMessage('topics');
+	}
+
+	// Don't show a pie chart with only one slice - it's not useful
+	if (topics.length === 1) {
+		return '';
 	}
 
 	const data: ChartDataPoint[] = topics.map((t) => ({
@@ -49,6 +55,7 @@ export function dailyActivityChart(activity: DailyActivity[]): string {
 
 /**
  * Generate a folder distribution pie chart
+ * Only shows chart when there are multiple folders to compare
  */
 export function folderDistributionChart(
 	folders: Map<string, number>,
@@ -56,6 +63,11 @@ export function folderDistributionChart(
 ): string {
 	if (folders.size === 0) {
 		return emptyStateMessage('folders');
+	}
+
+	// Don't show a pie chart with only one slice - it's not useful
+	if (folders.size === 1) {
+		return '';
 	}
 
 	const data: ChartDataPoint[] = Array.from(folders.entries()).map(
@@ -70,6 +82,7 @@ export function folderDistributionChart(
 
 /**
  * Generate a task completion pie chart
+ * Only shows chart when there's a mix of completed and pending tasks
  */
 export function taskCompletionChart(
 	completed: number,
@@ -79,10 +92,15 @@ export function taskCompletionChart(
 		return emptyStateMessage('tasks');
 	}
 
+	// Don't show a 100% chart - it's not useful
+	if (completed === 0 || pending === 0) {
+		return '';
+	}
+
 	const data: ChartDataPoint[] = [
 		{ label: 'Completed', value: completed },
 		{ label: 'Pending', value: pending },
-	].filter((d) => d.value > 0);
+	];
 
 	return generatePieChart(data, 'Task Completion', 2);
 }

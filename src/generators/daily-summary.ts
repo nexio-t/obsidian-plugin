@@ -25,8 +25,11 @@ export class DailySummaryGenerator extends BaseGenerator {
 		const aiSummary = await this.generateAISummary(stats.files);
 		const wordCountStats = await this.getWordCountStats(stats.files);
 
-		const dateStr = this.formatDate(this.date);
-		const title = `Daily Summary - ${dateStr}`;
+		const endDateStr = this.formatDate(this.date);
+		const lookbackDays = Math.max(1, this.settings.dailyLookbackDays);
+		const startDate = new Date(this.getStartOfDay(this.date) - (lookbackDays - 1) * 24 * 60 * 60 * 1000);
+		const startDateStr = this.formatDate(startDate);
+		const title = `Daily Summary - ${endDateStr}`;
 		const { summaryFolder } = this.settings;
 
 		const note: GeneratedNote = {
@@ -38,8 +41,8 @@ export class DailySummaryGenerator extends BaseGenerator {
 				generated: this.getISOTimestamp(),
 				generator: 'daily-summary',
 				period: 'daily',
-				startDate: dateStr,
-				endDate: dateStr,
+				startDate: startDateStr,
+				endDate: endDateStr,
 				tags: ['vault-insights', 'daily-summary'],
 			},
 		};
@@ -50,15 +53,22 @@ export class DailySummaryGenerator extends BaseGenerator {
 	}
 
 	private gatherDailyStats(): SummaryStats {
-		const [startOfDay, endOfDay] = [this.getStartOfDay(this.date), this.getEndOfDay(this.date)];
-		const createdFiles = this.getFilesCreatedBetween(startOfDay, endOfDay);
-		const modifiedFiles = this.getFilesModifiedBetween(startOfDay, endOfDay);
+		const lookbackDays = Math.max(1, this.settings.dailyLookbackDays);
+		const endOfDay = this.getEndOfDay(this.date);
+		const startOfPeriod = this.getStartOfDay(
+			new Date(endOfDay - (lookbackDays - 1) * 24 * 60 * 60 * 1000)
+		);
+
+		const createdFiles = this.getFilesCreatedBetween(startOfPeriod, endOfDay);
+		const modifiedFiles = this.getFilesModifiedBetween(startOfPeriod, endOfDay);
 		const files = [...new Set([...createdFiles, ...modifiedFiles])];
 		const { total, completed } = this.countTasksInFiles(files);
+		const createdPaths = new Set(createdFiles.map(file => file.path));
+		const modifiedOnlyCount = modifiedFiles.filter(file => !createdPaths.has(file.path)).length;
 
 		return {
 			notesCreated: createdFiles.length,
-			notesModified: modifiedFiles.length - createdFiles.length,
+			notesModified: modifiedOnlyCount,
 			totalTasks: total,
 			completedTasks: completed,
 			topTopics: this.extractTopicsFromFiles(files),
@@ -80,10 +90,17 @@ export class DailySummaryGenerator extends BaseGenerator {
 	 * Get the weekly summary link for this date
 	 */
 	private getWeeklySummaryLink(): string | null {
-		const startOfWeek = this.getStartOfWeek(this.date);
-		const endOfWeek = this.getEndOfWeek(this.date);
-		const startStr = this.formatDate(startOfWeek);
-		const endStr = this.formatDate(endOfWeek);
+		const { weeklyUseCalendarWeeks, weeklyLookbackDays } = this.settings;
+		const endOfPeriod = weeklyUseCalendarWeeks ? this.getEndOfWeek(this.date) : this.getEndOfDay(this.date);
+		const startOfPeriod = weeklyUseCalendarWeeks
+			? this.getStartOfWeek(this.date)
+			: new Date(
+					this.getStartOfDay(
+						new Date(endOfPeriod.getTime() - (Math.max(1, weeklyLookbackDays) - 1) * 24 * 60 * 60 * 1000)
+					)
+			  );
+		const startStr = this.formatDate(startOfPeriod);
+		const endStr = this.formatDate(endOfPeriod);
 		const weeklyTitle = `Weekly Summary - ${startStr} to ${endStr}`;
 		const weeklyPath = `${this.settings.summaryFolder}/Weekly/${weeklyTitle}.md`;
 
@@ -102,7 +119,10 @@ export class DailySummaryGenerator extends BaseGenerator {
 	): string {
 		const { notesCreated, notesModified, totalTasks, completedTasks, files, topTopics } = stats;
 		const { totalWords, mostActiveNote, mostActiveWordCount } = wordCountStats;
-		const { showAISummary, showCharts, showFileList, showTopicTable, maxChartItems } = this.settings;
+		const { showAISummary, showCharts, showFileList, showTopicTable, maxChartItems, chartType, dailyLookbackDays } = this.settings;
+		const chartsEnabled = showCharts && chartType === 'mermaid';
+		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const notesSectionTitle = dailyLookbackDays > 1 ? 'Notes Touched in Period' : 'Notes Touched Today';
 		const sections: string[] = [
 			`# Daily Summary - ${this.formatDateDisplay(this.date)}`,
 			'',
@@ -147,7 +167,7 @@ export class DailySummaryGenerator extends BaseGenerator {
 
 		if (showFileList) {
 			sections.push(
-				'## Notes Touched Today',
+				`## ${notesSectionTitle}`,
 				'',
 				files.length === 0
 					? emptyStateMessage('notes')
@@ -156,13 +176,17 @@ export class DailySummaryGenerator extends BaseGenerator {
 			);
 		}
 
-		if (showCharts || showTopicTable) {
+		if (chartsUnavailable) {
+			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
+		}
+
+		if (chartsEnabled || showTopicTable) {
 			sections.push('## Topics', '');
 
 			if (topTopics.length === 0) {
 				sections.push(emptyStateMessage('topics'), '');
 			} else {
-				if (showCharts) {
+				if (chartsEnabled) {
 					sections.push(topicDistributionChart(topTopics, maxChartItems), '');
 				}
 				if (showTopicTable) {

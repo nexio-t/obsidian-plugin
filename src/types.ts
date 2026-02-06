@@ -49,6 +49,7 @@ export interface VaultInsightsSettings {
   summaryTime: string;
   dailyLookbackDays: number;
   weeklyLookbackDays: number;
+  weeklyUseCalendarWeeks: boolean;
 
   // Todo settings
   todoSourceFolders: string[];
@@ -75,6 +76,10 @@ export interface VaultInsightsSettings {
   showCharts: boolean;
   showFileList: boolean;
   showTopicTable: boolean;
+
+  // Internal scheduling state (ISO date strings)
+  lastDailyRun?: string;
+  lastWeeklyRun?: string;
 }
 
 /**
@@ -88,6 +93,7 @@ export const DEFAULT_SETTINGS: VaultInsightsSettings = {
   summaryTime: '09:00',
   dailyLookbackDays: 1,
   weeklyLookbackDays: 7,
+  weeklyUseCalendarWeeks: true,
 
   // Todo settings
   todoSourceFolders: [],
@@ -114,6 +120,10 @@ export const DEFAULT_SETTINGS: VaultInsightsSettings = {
   showCharts: true,
   showFileList: true,
   showTopicTable: true,
+
+  // Internal scheduling state
+  lastDailyRun: '',
+  lastWeeklyRun: '',
 };
 
 // ============================================================================

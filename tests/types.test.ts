@@ -28,6 +28,7 @@ describe('DEFAULT_SETTINGS', () => {
         'summaryTime',
         'dailyLookbackDays',
         'weeklyLookbackDays',
+        'weeklyUseCalendarWeeks',
         // Todo settings
         'todoSourceFolders',
         'todoExcludeFolders',
@@ -49,6 +50,8 @@ describe('DEFAULT_SETTINGS', () => {
         'showCharts',
         'showFileList',
         'showTopicTable',
+        'lastDailyRun',
+        'lastWeeklyRun',
       ];
 
       for (const key of requiredKeys) {
@@ -64,6 +67,7 @@ describe('DEFAULT_SETTINGS', () => {
         'summaryTime',
         'dailyLookbackDays',
         'weeklyLookbackDays',
+        'weeklyUseCalendarWeeks',
         'todoSourceFolders',
         'todoExcludeFolders',
         'todoGroupBy',
@@ -80,6 +84,8 @@ describe('DEFAULT_SETTINGS', () => {
         'showCharts',
         'showFileList',
         'showTopicTable',
+        'lastDailyRun',
+        'lastWeeklyRun',
       ];
 
       const actualKeys = Object.keys(DEFAULT_SETTINGS);
@@ -140,6 +146,14 @@ describe('DEFAULT_SETTINGS', () => {
     it('should have weeklyLookbackDays as positive number', () => {
       expect(typeof DEFAULT_SETTINGS.weeklyLookbackDays).toBe('number');
       expect(DEFAULT_SETTINGS.weeklyLookbackDays).toBeGreaterThan(0);
+    });
+
+    it('should have weeklyUseCalendarWeeks enabled by default', () => {
+      expect(DEFAULT_SETTINGS.weeklyUseCalendarWeeks).toBe(true);
+    });
+
+    it('should have weeklyUseCalendarWeeks as boolean', () => {
+      expect(typeof DEFAULT_SETTINGS.weeklyUseCalendarWeeks).toBe('boolean');
     });
   });
 

@@ -1,0 +1,32 @@
+{
+  "summaryFolder": "Insights",
+  "dailySummaryEnabled": true,
+  "weeklySummaryEnabled": true,
+  "summaryTime": "09:00",
+  "dailyLookbackDays": 1,
+  "weeklyLookbackDays": 7,
+  "weeklyUseCalendarWeeks": true,
+  "todoSourceFolders": [],
+  "todoExcludeFolders": [
+    "templates",
+    "archive"
+  ],
+  "todoGroupBy": "file",
+  "todoIncludeCompleted": false,
+  "topicSources": [
+    "tags"
+  ],
+  "maxTopics": 20,
+  "excludedTags": [],
+  "ollamaEnabled": true,
+  "ollamaUrl": "http://localhost:11434",
+  "ollamaModel": "gpt-oss:120b",
+  "chartType": "mermaid",
+  "maxChartItems": 10,
+  "showAISummary": true,
+  "showCharts": true,
+  "showFileList": true,
+  "showTopicTable": true,
+  "lastDailyRun": "2026-02-06",
+  "lastWeeklyRun": "2026-02-01"
+}

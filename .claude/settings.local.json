@@ -8,7 +8,18 @@
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: add core infrastructure for Vault Insights plugin\n\n- Add configuration files \\(manifest.json, package.json, tsconfig.json, esbuild.config.mjs\\)\n- Add src/types.ts with all shared interfaces \\(VaultInsightsSettings, ExtractedTask, ExtractedTopic, etc.\\)\n- Add src/constants.ts with regex patterns and default values\n- Add src/core/cache.ts with generic caching layer\n- Add src/core/scanner.ts with vault scanning using MetadataCache\n- Add src/settings.ts with full settings UI \\(5 sections\\)\n- Add main.ts plugin entry with 4 command stubs\n\nAll code is mobile-compatible \\(no Node.js imports\\).\nBuild succeeds with no TypeScript errors.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: update local settings\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: update local settings\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)",
+      "Bash(npm test)",
+      "Bash(ollama --version:*)",
+      "Bash(curl:*)",
+      "Bash(ollama list:*)"
     ]
   }
 }

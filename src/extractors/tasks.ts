@@ -4,6 +4,8 @@ import type { ExtractedTask, TaskMarker, TaskPriority, TaskStatus } from '../typ
 // Regex patterns for task extraction
 const TASK_LINE_REGEX = /^[\s]*[-*]\s*\[([ xX\-/>!?])\]\s*(.+)$/gm;
 const INLINE_TAG_REGEX = /#[\w\-/]+/g;
+const FRONTMATTER_REGEX = /^---\n[\s\S]*?\n---\n?/;
+const CODE_BLOCK_REGEX = /```[\s\S]*?```/g;
 
 // Due date patterns
 const DUE_DATE_PATTERNS = [
@@ -60,12 +62,16 @@ export class TaskExtractor {
    */
   extractWithText(file: TFile, content: string): ExtractedTask[] {
     const tasks: ExtractedTask[] = [];
+    const excludedRanges = this.getExcludedRanges(content);
 
     // Reset regex state
     TASK_LINE_REGEX.lastIndex = 0;
 
     let match: RegExpExecArray | null;
     while ((match = TASK_LINE_REGEX.exec(content)) !== null) {
+      if (this.isInExcludedRange(match.index, excludedRanges)) {
+        continue;
+      }
       const marker = match[1] as TaskMarker;
       const text = match[2].trim();
 
@@ -144,6 +150,34 @@ export class TaskExtractor {
     }
 
     return matches.map(tag => tag.slice(1)); // Remove # prefix
+  }
+
+  private getExcludedRanges(content: string): Array<{ start: number; end: number }> {
+    const ranges: Array<{ start: number; end: number }> = [];
+
+    // Frontmatter (only if at start of file)
+    if (content.startsWith('---')) {
+      const frontmatterMatch = content.match(FRONTMATTER_REGEX);
+      if (frontmatterMatch?.index !== undefined) {
+        ranges.push({
+          start: frontmatterMatch.index,
+          end: frontmatterMatch.index + frontmatterMatch[0].length,
+        });
+      }
+    }
+
+    // Code blocks
+    CODE_BLOCK_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = CODE_BLOCK_REGEX.exec(content)) !== null) {
+      ranges.push({ start: match.index, end: match.index + match[0].length });
+    }
+
+    return ranges;
+  }
+
+  private isInExcludedRange(index: number, ranges: Array<{ start: number; end: number }>): boolean {
+    return ranges.some(range => index >= range.start && index < range.end);
   }
 
   /**

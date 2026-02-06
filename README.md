@@ -11,6 +11,8 @@ Generate actionable insights from your Obsidian vault - daily/weekly summaries, 
 Automatically generate markdown notes summarizing your vault activity:
 
 - Notes created and modified in the period
+- Scheduled generation at a configurable time
+- Choose **calendar weeks (Sun–Sat)** or **rolling lookback windows**
 - **Word count tracking** with "Most Active Note" highlight
 - Task completion statistics
 - Topic distribution with Mermaid charts
@@ -74,6 +76,7 @@ All charts render natively in Obsidian - zero external dependencies.
 | **Generate daily summary** | Create a summary note for today's vault activity |
 | **Generate weekly summary** | Create a summary note for the current week |
 | **Generate todo list** | Aggregate all tasks from configured folders |
+| **Generate pending todo list** | Create a clean list of uncompleted tasks |
 | **Analyze vault topics** | Generate topic frequency analysis |
 | **Refresh all insights** | Regenerate all insight notes |
 
@@ -89,6 +92,7 @@ Access these commands via the Command Palette (`Ctrl/Cmd + P`).
 | Daily Summary | Enable daily summary generation | On |
 | Weekly Summary | Enable weekly summary generation | On |
 | Summary Time | Scheduled generation time | `09:00` |
+| Use Calendar Weeks | Weekly summaries use Sunday–Saturday | On |
 
 ### Todo Settings
 
@@ -105,7 +109,15 @@ Access these commands via the Command Palette (`Ctrl/Cmd + P`).
 |---------|-------------|---------|
 | Topic Sources | What to analyze (tags, headings, links) | `tags, headings` |
 | Max Topics | Maximum topics to display | `20` |
+
+### Visualization Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Chart Type | Rendering engine for charts | `mermaid` |
 | Max Chart Items | Maximum items in charts | `10` |
+
+> Note: Chart.js is listed but not yet implemented. Mermaid is fully supported.
 
 ### Section Visibility
 
