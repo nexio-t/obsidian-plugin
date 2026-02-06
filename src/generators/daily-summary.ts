@@ -27,7 +27,7 @@ export class DailySummaryGenerator extends BaseGenerator {
 
 		const endDateStr = this.formatDate(this.date);
 		const lookbackDays = Math.max(1, this.settings.dailyLookbackDays);
-		const startDate = new Date(this.getStartOfDay(this.date) - (lookbackDays - 1) * 24 * 60 * 60 * 1000);
+		const startDate = new Date(this.getStartOfDay(this.date).getTime() - (lookbackDays - 1) * 24 * 60 * 60 * 1000);
 		const startDateStr = this.formatDate(startDate);
 		const title = `Daily Summary - ${endDateStr}`;
 		const { summaryFolder } = this.settings;
@@ -56,11 +56,11 @@ export class DailySummaryGenerator extends BaseGenerator {
 		const lookbackDays = Math.max(1, this.settings.dailyLookbackDays);
 		const endOfDay = this.getEndOfDay(this.date);
 		const startOfPeriod = this.getStartOfDay(
-			new Date(endOfDay - (lookbackDays - 1) * 24 * 60 * 60 * 1000)
+			new Date(endOfDay.getTime() - (lookbackDays - 1) * 24 * 60 * 60 * 1000)
 		);
 
-		const createdFiles = this.getFilesCreatedBetween(startOfPeriod, endOfDay);
-		const modifiedFiles = this.getFilesModifiedBetween(startOfPeriod, endOfDay);
+		const createdFiles = this.getFilesCreatedBetween(startOfPeriod.getTime(), endOfDay.getTime());
+		const modifiedFiles = this.getFilesModifiedBetween(startOfPeriod.getTime(), endOfDay.getTime());
 		const files = [...new Set([...createdFiles, ...modifiedFiles])];
 		const { total, completed } = this.countTasksInFiles(files);
 		const createdPaths = new Set(createdFiles.map(file => file.path));
@@ -94,10 +94,8 @@ export class DailySummaryGenerator extends BaseGenerator {
 		const endOfPeriod = weeklyUseCalendarWeeks ? this.getEndOfWeek(this.date) : this.getEndOfDay(this.date);
 		const startOfPeriod = weeklyUseCalendarWeeks
 			? this.getStartOfWeek(this.date)
-			: new Date(
-					this.getStartOfDay(
-						new Date(endOfPeriod.getTime() - (Math.max(1, weeklyLookbackDays) - 1) * 24 * 60 * 60 * 1000)
-					)
+			: this.getStartOfDay(
+					new Date(endOfPeriod.getTime() - (Math.max(1, weeklyLookbackDays) - 1) * 24 * 60 * 60 * 1000)
 			  );
 		const startStr = this.formatDate(startOfPeriod);
 		const endStr = this.formatDate(endOfPeriod);
@@ -194,7 +192,7 @@ export class DailySummaryGenerator extends BaseGenerator {
 						'| Rank | Topic | Count | Source |',
 						'|------|-------|-------|--------|',
 						...topTopics.slice(0, 10).map((topic, i) =>
-							`| ${i + 1} | ${topic.name} | ${topic.count} | ${topic.source} |`
+							`| ${i + 1} | ${this.escapeTableCell(topic.name)} | ${topic.count} | ${topic.source} |`
 						),
 						''
 					);

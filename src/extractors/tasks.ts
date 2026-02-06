@@ -110,37 +110,6 @@ export class TaskExtractor {
   }
 
   /**
-   * Extract tasks with full data by combining cache and content parsing.
-   * Most complete but requires both cache and content.
-   */
-  extractFull(
-    file: TFile,
-    cache: CachedMetadata | null,
-    content: string
-  ): ExtractedTask[] {
-    // If we have cache, use it to validate line positions
-    const cachedTasks = this.extractFromCache(file, cache);
-    const textTasks = this.extractWithText(file, content);
-
-    // If no cached tasks, return text-based extraction
-    if (cachedTasks.length === 0) {
-      return textTasks;
-    }
-
-    // Merge: use text tasks but validate against cache positions
-    const cachedLines = new Set(cachedTasks.map(t => t.line));
-
-    return textTasks.map(task => {
-      // If cache has this line, it's validated
-      if (cachedLines.has(task.line)) {
-        return task;
-      }
-      // If not in cache, still include (might be in code block etc.)
-      return task;
-    });
-  }
-
-  /**
    * Extract inline tags from task text.
    */
   private extractInlineTags(text: string): string[] {

@@ -32,12 +32,12 @@ describe('escapeLabel', () => {
   });
 
   describe('quote escaping', () => {
-    it('should escape double quotes', () => {
-      expect(escapeLabel('Say "Hello"')).toBe('Say \\"Hello\\"');
+    it('should replace double quotes with single quotes', () => {
+      expect(escapeLabel('Say "Hello"')).toBe("Say 'Hello'");
     });
 
-    it('should escape multiple double quotes', () => {
-      expect(escapeLabel('"A" and "B"')).toBe('\\"A\\" and \\"B\\"');
+    it('should replace multiple double quotes', () => {
+      expect(escapeLabel('"A" and "B"')).toBe("'A' and 'B'");
     });
   });
 
@@ -47,7 +47,7 @@ describe('escapeLabel', () => {
     });
 
     it('should escape backslash before quote', () => {
-      expect(escapeLabel('\\"escaped"')).toBe('\\\\\\"escaped\\"');
+      expect(escapeLabel('\\"escaped"')).toBe("\\\\'escaped'");
     });
   });
 
@@ -79,7 +79,7 @@ describe('escapeLabel', () => {
   describe('combined special characters', () => {
     it('should handle multiple types of special characters', () => {
       const input = 'Test "quote"\nNew<line>';
-      const expected = 'Test \\"quote\\" Newline';
+      const expected = "Test 'quote' Newline";
       expect(escapeLabel(input)).toBe(expected);
     });
   });
@@ -237,22 +237,22 @@ describe('generatePieChart', () => {
   });
 
   describe('special character handling', () => {
-    it('should escape quotes in labels', () => {
+    it('should replace quotes in labels', () => {
       const data: ChartDataPoint[] = [
         { label: 'Say "Hello"', value: 50 },
       ];
       const result = generatePieChart(data, 'Quote Test');
 
-      expect(result).toContain('Say \\"Hello\\"');
+      expect(result).toContain("Say 'Hello'");
     });
 
-    it('should escape quotes in title', () => {
+    it('should replace quotes in title', () => {
       const data: ChartDataPoint[] = [
         { label: 'Item', value: 100 },
       ];
       const result = generatePieChart(data, 'Test "Chart"');
 
-      expect(result).toContain('title Test \\"Chart\\"');
+      expect(result).toContain("title Test 'Chart'");
     });
 
     it('should handle labels with newlines', () => {
@@ -404,11 +404,11 @@ describe('generateBarChart', () => {
   });
 
   describe('special character handling', () => {
-    it('should escape quotes in title', () => {
+    it('should replace quotes in title', () => {
       const data: ChartDataPoint[] = [{ label: 'A', value: 10 }];
       const result = generateBarChart(data, 'Chart "Title"');
 
-      expect(result).toContain('title "Chart \\"Title\\""');
+      expect(result).toContain("title \"Chart 'Title'\"");
     });
   });
 });
@@ -530,13 +530,13 @@ describe('generateTimeline', () => {
       expect(result).toContain('...');
     });
 
-    it('should escape special characters in labels', () => {
+    it('should replace special characters in labels', () => {
       const events: TimelineEvent[] = [
         { date: createDate(1, 1), label: 'Event with "quotes"' },
       ];
       const result = generateTimeline(events, 'Quotes');
 
-      expect(result).toContain('\\"quotes\\"');
+      expect(result).toContain("'quotes'");
     });
   });
 });

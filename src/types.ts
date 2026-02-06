@@ -159,140 +159,12 @@ export interface TaskItem {
 }
 
 /**
- * A topic identified from vault analysis
- */
-export interface ExtractedTopic {
-  name: string;
-  displayName: string;
-  source: TopicSource;
-  count: number;
-  files: string[];
-}
-
-/**
- * Topic data for analysis (simplified)
+ * Topic data for analysis
  */
 export interface TopicData {
   name: string;
   count: number;
   source: TopicSource;
-}
-
-/**
- * Topics grouped by source
- */
-export interface TopicsBySource {
-  tags: ExtractedTopic[];
-  headings: ExtractedTopic[];
-  links: ExtractedTopic[];
-}
-
-/**
- * Full topic analysis result
- */
-export interface TopicAnalysis {
-  topics: ExtractedTopic[];
-  uniqueCount: number;
-  totalOccurrences: number;
-  bySource: TopicsBySource;
-}
-
-/**
- * Content summary extracted from a note
- */
-export interface ContentSummary {
-  title: string;
-  excerpt: string;
-  wordCount: number;
-  file: TFile;
-  modifiedAt: number;
-}
-
-/**
- * Content extraction result (extended)
- */
-export interface ExtractedContent {
-  filePath: string;
-  fileName: string;
-  headings: string[];
-  firstParagraph: string;
-  wordCount: number;
-  createdAt: number;
-  modifiedAt: number;
-}
-
-// ============================================================================
-// Metadata Interfaces
-// ============================================================================
-
-/**
- * Metadata extracted from frontmatter
- */
-export interface ExtractedMetadata {
-  title?: string;
-  date?: Date;
-  tags: string[];
-  aliases: string[];
-  created?: Date;
-  modified?: Date;
-  customFields: Record<string, unknown>;
-}
-
-/**
- * Information about a heading in a note
- */
-export interface HeadingInfo {
-  text: string;
-  level: number;
-  line: number;
-}
-
-/**
- * Information about a task in a note
- */
-export interface TaskInfo {
-  text: string;
-  completed: boolean;
-  line: number;
-}
-
-/**
- * Full metadata extracted from a note using MetadataCache
- */
-export interface NoteMetadata {
-  filePath: string;
-  fileName: string;
-  frontmatter: Record<string, unknown>;
-  tags: string[];
-  links: string[];
-  headings: HeadingInfo[];
-  tasks: TaskInfo[];
-  createdAt: number;
-  modifiedAt: number;
-}
-
-// ============================================================================
-// Scanner Interfaces
-// ============================================================================
-
-/**
- * Filters for scanning the vault
- */
-export interface ScanFilters {
-  folders?: string[];
-  excludeFolders?: string[];
-  modifiedAfter?: number;
-  modifiedBefore?: number;
-}
-
-/**
- * Result of a vault scan operation
- */
-export interface ScanResult {
-  files: TFile[];
-  totalCount: number;
-  scannedAt: number;
-  filters: ScanFilters;
 }
 
 // ============================================================================
@@ -333,19 +205,6 @@ export interface SummaryStats {
   completedTasks: number;
   topTopics: TopicData[];
   files: TFile[];
-}
-
-// ============================================================================
-// Cache Interfaces
-// ============================================================================
-
-/**
- * A cached entry with metadata for invalidation
- */
-export interface CacheEntry<T> {
-  data: T;
-  mtime: number;
-  cachedAt: number;
 }
 
 // ============================================================================

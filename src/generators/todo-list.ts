@@ -53,8 +53,15 @@ export class TodoListGenerator extends BaseGenerator {
 			return true;
 		});
 
-		const taskArrays = await Promise.all(targetFiles.map(file => this.extractTasksFromFile(file)));
-		return taskArrays.flat();
+		// Process files with concurrency limit to avoid memory pressure on large vaults
+		const allTasks: TaskItem[] = [];
+		const batchSize = 10;
+		for (let i = 0; i < targetFiles.length; i += batchSize) {
+			const batch = targetFiles.slice(i, i + batchSize);
+			const batchResults = await Promise.all(batch.map(file => this.extractTasksFromFile(file)));
+			allTasks.push(...batchResults.flat());
+		}
+		return allTasks;
 	}
 
 	protected async extractTasksFromFile(file: TFile): Promise<TaskItem[]> {

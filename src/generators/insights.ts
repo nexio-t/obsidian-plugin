@@ -13,12 +13,8 @@ export class InsightsGenerator extends BaseGenerator {
 	}
 
 	async generate(): Promise<GeneratedNote> {
+		const allFiles = this.getUserMarkdownFiles();
 		const { summaryFolder } = this.settings;
-
-		// Cache all files once, excluding generated files in the Insights folder
-		const allFiles = this.getAllMarkdownFiles().filter(
-			file => !file.path.startsWith(summaryFolder)
-		);
 
 		const vaultStats = this.getVaultStats(allFiles);
 		const allTopics = this.extractAllTopics(allFiles);
@@ -126,15 +122,18 @@ export class InsightsGenerator extends BaseGenerator {
 			Array.from(sourceCounts.entries()).map(([source, counts]) => [source, toTopicData(counts, source)])
 		);
 
-		// Merge all sources, keeping first source encountered for each name
+		// Merge all sources, accumulating counts and keeping the highest-count source
 		const allCounts = new Map<string, { count: number; source: Source }>();
 		for (const [source, counts] of sourceCounts) {
 			for (const [name, count] of counts) {
 				const existing = allCounts.get(name);
 				if (!existing) {
 					allCounts.set(name, { count, source });
-				} else if (existing.source === source) {
-					allCounts.set(name, { count: existing.count + count, source });
+				} else {
+					const newCount = existing.count + count;
+					// Keep the source that contributed more
+					const newSource = count > existing.count ? source : existing.source;
+					allCounts.set(name, { count: newCount, source: newSource });
 				}
 			}
 		}
@@ -275,7 +274,4 @@ export class InsightsGenerator extends BaseGenerator {
 		return sections.join('\n');
 	}
 
-	private escapeTableCell(text: string): string {
-		return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-	}
 }

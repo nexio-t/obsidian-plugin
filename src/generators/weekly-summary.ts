@@ -91,8 +91,8 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 
 	private getRollingPeriodStart(endOfPeriod: Date): Date {
 		const lookbackDays = Math.max(1, this.settings.weeklyLookbackDays);
-		return new Date(
-			this.getStartOfDay(new Date(endOfPeriod.getTime() - (lookbackDays - 1) * 24 * 60 * 60 * 1000))
+		return this.getStartOfDay(
+			new Date(endOfPeriod.getTime() - (lookbackDays - 1) * 24 * 60 * 60 * 1000)
 		);
 	}
 
@@ -210,7 +210,7 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 					'| Rank | Topic | Count | Source |',
 					'|------|-------|-------|--------|',
 					...topTopics.slice(0, 10).map((topic, i) =>
-						`| ${i + 1} | ${topic.name} | ${topic.count} | ${topic.source} |`
+						`| ${i + 1} | ${this.escapeTableCell(topic.name)} | ${topic.count} | ${topic.source} |`
 					)
 				);
 			}

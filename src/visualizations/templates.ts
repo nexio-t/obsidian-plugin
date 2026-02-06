@@ -50,7 +50,7 @@ export function dailyActivityChart(activity: DailyActivity[]): string {
 		return emptyStateMessage('activity');
 	}
 
-	return generateBarChart(orderedActivity, 'Daily Activity', 7);
+	return generateBarChart(orderedActivity, 'Daily Activity', 7, true);
 }
 
 /**

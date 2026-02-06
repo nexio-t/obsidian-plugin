@@ -174,30 +174,12 @@ Summary:`;
   }
 
   /**
-   * List available models.
+   * List available model names.
    * Returns empty array on failure.
    */
   async listModels(): Promise<string[]> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
-
-      const response = await fetch(`${this.config.url}/api/tags`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json() as OllamaTagsResponse;
-      return data.models?.map(m => m.name) ?? [];
-    } catch {
-      return [];
-    }
+    const models = await this.getModels();
+    return models.map(m => m.name);
   }
 
   /**

@@ -206,22 +206,21 @@ describe('BaseGenerator Date Utilities', () => {
     it('should handle midnight input', () => {
       const date = new Date(2024, 0, 1, 0, 0, 0, 0);
       const startOfDay = generator.testGetStartOfDay(date);
-      expect(startOfDay).toBe(date.getTime());
+      expect(startOfDay.getTime()).toBe(date.getTime());
     });
 
     it('should handle near-midnight times', () => {
       const date = new Date(2024, 0, 15, 23, 59, 59, 999);
       const startOfDay = generator.testGetStartOfDay(date);
-      const resultDate = new Date(startOfDay);
 
-      expect(resultDate.getDate()).toBe(15); // Still the 15th
-      expect(resultDate.getHours()).toBe(0);
+      expect(startOfDay.getDate()).toBe(15); // Still the 15th
+      expect(startOfDay.getHours()).toBe(0);
     });
 
-    it('should return a number (timestamp)', () => {
+    it('should return a Date object', () => {
       const date = new Date();
       const result = generator.testGetStartOfDay(date);
-      expect(typeof result).toBe('number');
+      expect(result).toBeInstanceOf(Date);
     });
   });
 
@@ -254,22 +253,21 @@ describe('BaseGenerator Date Utilities', () => {
     it('should handle already end of day', () => {
       const date = new Date(2024, 0, 1, 23, 59, 59, 999);
       const endOfDay = generator.testGetEndOfDay(date);
-      expect(endOfDay).toBe(date.getTime());
+      expect(endOfDay.getTime()).toBe(date.getTime());
     });
 
     it('should handle midnight input', () => {
       const date = new Date(2024, 0, 15, 0, 0, 0, 0);
       const endOfDay = generator.testGetEndOfDay(date);
-      const resultDate = new Date(endOfDay);
 
-      expect(resultDate.getDate()).toBe(15);
-      expect(resultDate.getHours()).toBe(23);
+      expect(endOfDay.getDate()).toBe(15);
+      expect(endOfDay.getHours()).toBe(23);
     });
 
-    it('should return a number (timestamp)', () => {
+    it('should return a Date object', () => {
       const date = new Date();
       const result = generator.testGetEndOfDay(date);
-      expect(typeof result).toBe('number');
+      expect(result).toBeInstanceOf(Date);
     });
   });
 

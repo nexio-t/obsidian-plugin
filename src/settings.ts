@@ -118,6 +118,19 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(containerEl)
+      .setName('Scheduled generation time')
+      .setDesc('Time to auto-generate summaries (HH:MM, 24-hour format). Leave empty to disable.')
+      .addText((text) =>
+        text
+          .setPlaceholder('09:00')
+          .setValue(this.plugin.settings.summaryTime)
+          .onChange(async (value) => {
+            this.plugin.settings.summaryTime = value || '09:00';
+            await this.plugin.saveSettings();
+          })
+      );
   }
 
   /**

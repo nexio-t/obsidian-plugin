@@ -1,17 +1,11 @@
-import { App } from 'obsidian';
 import { TodoListGenerator } from './todo-list';
-import { VaultInsightsSettings, GeneratedNote, TaskItem } from '../types';
-import { OllamaClient } from '../integrations/ollama';
+import { GeneratedNote, TaskItem } from '../types';
 import { emptyStateMessage } from '../visualizations';
 
 /**
  * Generator for a clean pending-only todo list
  */
 export class PendingTodoListGenerator extends TodoListGenerator {
-	constructor(app: App, settings: VaultInsightsSettings, ollamaClient?: OllamaClient) {
-		super(app, settings, ollamaClient);
-	}
-
 	async generate(): Promise<GeneratedNote> {
 		const tasks = await this.extractAllTasks();
 		const pendingTasks = tasks.filter(t => !t.completed);

@@ -2,15 +2,16 @@ import { ChartDataPoint, TimelineEvent, Connection } from '../types';
 
 /**
  * Escape special characters for Mermaid labels
- * Handles characters that break Mermaid rendering: #, [, ], {, }, ;, <, >
+ * Replaces characters that break Mermaid rendering with safe alternatives
  */
 export function escapeLabel(label: string): string {
 	return label
 		.replace(/\\/g, '\\\\')
-		.replace(/"/g, '\\"')
+		.replace(/"/g, "'")
 		.replace(/\n/g, ' ')
 		.replace(/\r/g, '')
-		.replace(/[#\[\]{};<>]/g, '')
+		.replace(/#/g, 'sharp')
+		.replace(/[[\]{};<>]/g, '')
 		.trim();
 }
 
@@ -50,20 +51,22 @@ ${items}
 
 /**
  * Generate a Mermaid bar chart using xychart-beta
+ * @param preserveOrder - if true, keeps the original data order instead of sorting by value
  */
 export function generateBarChart(
 	data: ChartDataPoint[],
 	title: string,
-	maxItems: number = 10
+	maxItems: number = 10,
+	preserveOrder: boolean = false
 ): string {
 	if (data.length === 0) return '';
 
-	const sortedData = [...data]
-		.sort((a, b) => b.value - a.value)
-		.slice(0, maxItems);
+	const processedData = preserveOrder
+		? [...data].slice(0, maxItems)
+		: [...data].sort((a, b) => b.value - a.value).slice(0, maxItems);
 
-	const labels = sortedData.map(d => `"${escapeLabel(truncateLabel(d.label, 15))}"`).join(', ');
-	const values = sortedData.map(d => d.value).join(', ');
+	const labels = processedData.map(d => `"${escapeLabel(truncateLabel(d.label, 15))}"`).join(', ');
+	const values = processedData.map(d => d.value).join(', ');
 
 	return `\`\`\`mermaid
 xychart-beta horizontal

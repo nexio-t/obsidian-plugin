@@ -66,12 +66,20 @@ export abstract class BaseGenerator {
 	 * Build YAML frontmatter string
 	 */
 	private buildFrontmatter(frontmatter: NoteFrontmatter | Record<string, unknown>): string {
+		const escapeYamlString = (str: string): string => {
+			if (/[:#\[\]{}&*!|>'"%@`\n\r]/.test(str) || str.startsWith(' ') || str.endsWith(' ')) {
+				return `"${str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+			}
+			return str;
+		};
+
 		const formatValue = (key: string, value: unknown): string => {
 			if (typeof value === 'string') {
-				return key === 'title' ? `${key}: "${value}"` : `${key}: ${value}`;
+				return `${key}: ${escapeYamlString(value)}`;
 			}
 			if (Array.isArray(value)) {
-				return `${key}: [${value.join(', ')}]`;
+				const items = value.map(v => typeof v === 'string' ? escapeYamlString(v) : String(v));
+				return `${key}: [${items.join(', ')}]`;
 			}
 			return `${key}: ${value}`;
 		};
@@ -81,7 +89,7 @@ export abstract class BaseGenerator {
 		if (isNoteFrontmatter) {
 			const { title, generated, generator, period, startDate, endDate, tags } = frontmatter as NoteFrontmatter;
 			const lines = [
-				`title: "${title}"`,
+				`title: ${escapeYamlString(title)}`,
 				`generated: ${generated}`,
 				`generator: ${generator}`,
 			];
@@ -89,7 +97,10 @@ export abstract class BaseGenerator {
 			if (period) lines.push(`period: ${period}`);
 			if (startDate) lines.push(`startDate: ${startDate}`);
 			if (endDate) lines.push(`endDate: ${endDate}`);
-			if (tags?.length) lines.push(`tags: [${tags.join(', ')}]`);
+			if (tags?.length) {
+				const escapedTags = tags.map(t => escapeYamlString(t));
+				lines.push(`tags: [${escapedTags.join(', ')}]`);
+			}
 
 			return lines.join('\n') + '\n';
 		}
@@ -115,7 +126,14 @@ export abstract class BaseGenerator {
 			const folder = this.app.vault.getAbstractFileByPath(currentPath);
 
 			if (!folder) {
-				await this.app.vault.createFolder(currentPath);
+				try {
+					await this.app.vault.createFolder(currentPath);
+				} catch {
+					// Folder may have been created by a concurrent generator
+					if (!this.app.vault.getAbstractFileByPath(currentPath)) {
+						throw new Error(`Failed to create folder: ${currentPath}`);
+					}
+				}
 			}
 		}
 	}
@@ -170,21 +188,21 @@ export abstract class BaseGenerator {
 	}
 
 	/**
-	 * Get start of day timestamp (midnight)
+	 * Get start of day (midnight)
 	 */
-	protected getStartOfDay(date: Date): number {
+	protected getStartOfDay(date: Date): Date {
 		const start = new Date(date);
 		start.setHours(0, 0, 0, 0);
-		return start.getTime();
+		return start;
 	}
 
 	/**
-	 * Get end of day timestamp (23:59:59.999)
+	 * Get end of day (23:59:59.999)
 	 */
-	protected getEndOfDay(date: Date): number {
+	protected getEndOfDay(date: Date): Date {
 		const end = new Date(date);
 		end.setHours(23, 59, 59, 999);
-		return end.getTime();
+		return end;
 	}
 
 	/**
@@ -470,6 +488,10 @@ export abstract class BaseGenerator {
 
 	protected normalizeTag(tag: string): string {
 		return tag.startsWith('#') ? tag.slice(1) : tag;
+	}
+
+	protected escapeTableCell(text: string): string {
+		return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 	}
 
 	protected isPathInFolder(path: string, folder: string): boolean {
