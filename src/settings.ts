@@ -322,14 +322,21 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Test connection')
-      .setDesc('Test if Ollama is available.')
+      .setDesc('Test if Ollama is available and the configured model exists.')
       .addButton((button) =>
         button.setButtonText('Test').onClick(async () => {
           button.setButtonText('Testing...');
           try {
             this.plugin.ollamaClient.resetAvailabilityCache();
             const ok = await this.plugin.ollamaClient.isAvailable();
-            button.setButtonText(ok ? 'Connected!' : 'Failed');
+            if (!ok) {
+              button.setButtonText('Failed');
+            } else {
+              const hasModel = await this.plugin.ollamaClient.hasModel(
+                this.plugin.settings.ollamaModel
+              );
+              button.setButtonText(hasModel ? 'Connected!' : 'Model not found');
+            }
           } catch {
             button.setButtonText('Failed');
           }
@@ -353,7 +360,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .addDropdown((dropdown) =>
         dropdown
           .addOption('mermaid', 'Mermaid (Native)')
-          .addOption('chartjs', 'Chart.js (Not yet supported)')
+          .addOption('chartjs', 'Chart.js (Interactive)')
           .setValue(this.plugin.settings.chartType)
           .onChange(async (value) => {
             this.plugin.settings.chartType = value as ChartType;
@@ -404,7 +411,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Show charts')
-      .setDesc('Include Mermaid charts and visualizations.')
+      .setDesc('Include charts and visualizations in generated notes.')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showCharts)

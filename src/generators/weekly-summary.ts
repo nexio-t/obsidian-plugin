@@ -139,8 +139,7 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 		const { notesCreated, notesModified, totalTasks, completedTasks, files, topTopics } = stats;
 		const { totalWords, mostActiveNote, mostActiveWordCount } = wordCountStats;
 		const { maxChartItems, showAISummary, showCharts, showFileList, showTopicTable, chartType, weeklyLookbackDays, weeklyUseCalendarWeeks } = this.settings;
-		const chartsEnabled = showCharts && chartType === 'mermaid';
-		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const chartsEnabled = showCharts;
 		const notesSectionTitle =
 			weeklyUseCalendarWeeks || weeklyLookbackDays === 7
 				? 'Notes Touched This Week'
@@ -181,21 +180,17 @@ export class WeeklySummaryGenerator extends BaseGenerator {
 			);
 		}
 
-		if (chartsUnavailable) {
-			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
-		}
-
 		if (chartsEnabled) {
 			sections.push(
 				'## Daily Activity',
 				'',
-				dailyActivityChart(dailyActivity),
+				dailyActivityChart(dailyActivity, chartType),
 				'',
 				'## Topic Distribution',
 				'',
 				topTopics.length === 0
 					? emptyStateMessage('topics')
-					: topicDistributionChart(topTopics, maxChartItems),
+					: topicDistributionChart(topTopics, maxChartItems, chartType),
 				''
 			);
 		}

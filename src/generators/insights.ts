@@ -153,8 +153,7 @@ export class InsightsGenerator extends BaseGenerator {
 		aiTopics: string[]
 	): string {
 		const { showAISummary, showCharts, showTopicTable, maxChartItems, topicSources, chartType } = this.settings;
-		const chartsEnabled = showCharts && chartType === 'mermaid';
-		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const chartsEnabled = showCharts;
 		const sections: string[] = [];
 
 		sections.push('# Vault Insights');
@@ -179,15 +178,10 @@ export class InsightsGenerator extends BaseGenerator {
 		sections.push(`- **Folders:** ${vaultStats.totalFolders}`);
 		sections.push('');
 
-		if (chartsUnavailable) {
-			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.');
-			sections.push('');
-		}
-
 		if (chartsEnabled) {
 			sections.push('## Content Distribution');
 			sections.push('');
-			sections.push(folderDistributionChart(folderDistribution, maxChartItems));
+			sections.push(folderDistributionChart(folderDistribution, maxChartItems, chartType));
 			sections.push('');
 
 			sections.push('## Topic Distribution');
@@ -195,7 +189,7 @@ export class InsightsGenerator extends BaseGenerator {
 			if (topics.all.length === 0) {
 				sections.push(emptyStateMessage('topics'));
 			} else {
-				sections.push(topicDistributionChart(topics.all, maxChartItems));
+				sections.push(topicDistributionChart(topics.all, maxChartItems, chartType));
 			}
 			sections.push('');
 
@@ -204,7 +198,7 @@ export class InsightsGenerator extends BaseGenerator {
 			if (topics.all.length === 0) {
 				sections.push(emptyStateMessage('topics'));
 			} else {
-				sections.push(topicFrequencyChart(topics.all, maxChartItems));
+				sections.push(topicFrequencyChart(topics.all, maxChartItems, chartType));
 			}
 			sections.push('');
 		}

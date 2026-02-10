@@ -1,5 +1,6 @@
-import { TopicData, DailyActivity, ChartDataPoint } from '../types';
+import { TopicData, DailyActivity, ChartDataPoint, ChartType } from '../types';
 import { generatePieChart, generateBarChart } from './mermaid';
+import { generateChartJsPieChart, generateChartJsBarChart } from './chartjs';
 
 /**
  * Generate a topic distribution pie chart
@@ -7,7 +8,8 @@ import { generatePieChart, generateBarChart } from './mermaid';
  */
 export function topicDistributionChart(
 	topics: TopicData[],
-	maxItems: number = 10
+	maxItems: number = 10,
+	chartType: ChartType = 'mermaid'
 ): string {
 	if (topics.length === 0) {
 		return emptyStateMessage('topics');
@@ -23,13 +25,18 @@ export function topicDistributionChart(
 		value: t.count,
 	}));
 
-	return generatePieChart(data, 'Topic Distribution', maxItems);
+	return chartType === 'chartjs'
+		? generateChartJsPieChart(data, 'Topic Distribution', maxItems)
+		: generatePieChart(data, 'Topic Distribution', maxItems);
 }
 
 /**
  * Generate a daily activity bar chart with ordered weekdays
  */
-export function dailyActivityChart(activity: DailyActivity[]): string {
+export function dailyActivityChart(
+	activity: DailyActivity[],
+	chartType: ChartType = 'mermaid'
+): string {
 	if (activity.length === 0) {
 		return emptyStateMessage('activity');
 	}
@@ -50,7 +57,9 @@ export function dailyActivityChart(activity: DailyActivity[]): string {
 		return emptyStateMessage('activity');
 	}
 
-	return generateBarChart(orderedActivity, 'Daily Activity', 7, true);
+	return chartType === 'chartjs'
+		? generateChartJsBarChart(orderedActivity, 'Daily Activity', 7, true)
+		: generateBarChart(orderedActivity, 'Daily Activity', 7, true);
 }
 
 /**
@@ -59,7 +68,8 @@ export function dailyActivityChart(activity: DailyActivity[]): string {
  */
 export function folderDistributionChart(
 	folders: Map<string, number>,
-	maxItems: number = 10
+	maxItems: number = 10,
+	chartType: ChartType = 'mermaid'
 ): string {
 	if (folders.size === 0) {
 		return emptyStateMessage('folders');
@@ -77,7 +87,9 @@ export function folderDistributionChart(
 		})
 	);
 
-	return generatePieChart(data, 'Folder Distribution', maxItems);
+	return chartType === 'chartjs'
+		? generateChartJsPieChart(data, 'Folder Distribution', maxItems)
+		: generatePieChart(data, 'Folder Distribution', maxItems);
 }
 
 /**
@@ -86,7 +98,8 @@ export function folderDistributionChart(
  */
 export function taskCompletionChart(
 	completed: number,
-	pending: number
+	pending: number,
+	chartType: ChartType = 'mermaid'
 ): string {
 	if (completed === 0 && pending === 0) {
 		return emptyStateMessage('tasks');
@@ -102,7 +115,9 @@ export function taskCompletionChart(
 		{ label: 'Pending', value: pending },
 	];
 
-	return generatePieChart(data, 'Task Completion', 2);
+	return chartType === 'chartjs'
+		? generateChartJsPieChart(data, 'Task Completion', 2)
+		: generatePieChart(data, 'Task Completion', 2);
 }
 
 /**
@@ -110,7 +125,8 @@ export function taskCompletionChart(
  */
 export function topicFrequencyChart(
 	topics: TopicData[],
-	maxItems: number = 10
+	maxItems: number = 10,
+	chartType: ChartType = 'mermaid'
 ): string {
 	if (topics.length === 0) {
 		return emptyStateMessage('topics');
@@ -121,7 +137,9 @@ export function topicFrequencyChart(
 		value: t.count,
 	}));
 
-	return generateBarChart(data, 'Topic Frequency', maxItems);
+	return chartType === 'chartjs'
+		? generateChartJsBarChart(data, 'Topic Frequency', maxItems)
+		: generateBarChart(data, 'Topic Frequency', maxItems);
 }
 
 /**

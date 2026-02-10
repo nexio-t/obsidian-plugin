@@ -118,8 +118,7 @@ export class DailySummaryGenerator extends BaseGenerator {
 		const { notesCreated, notesModified, totalTasks, completedTasks, files, topTopics } = stats;
 		const { totalWords, mostActiveNote, mostActiveWordCount } = wordCountStats;
 		const { showAISummary, showCharts, showFileList, showTopicTable, maxChartItems, chartType, dailyLookbackDays } = this.settings;
-		const chartsEnabled = showCharts && chartType === 'mermaid';
-		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const chartsEnabled = showCharts;
 		const notesSectionTitle = dailyLookbackDays > 1 ? 'Notes Touched in Period' : 'Notes Touched Today';
 		const sections: string[] = [
 			`# Daily Summary - ${this.formatDateDisplay(this.date)}`,
@@ -174,10 +173,6 @@ export class DailySummaryGenerator extends BaseGenerator {
 			);
 		}
 
-		if (chartsUnavailable) {
-			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
-		}
-
 		if (chartsEnabled || showTopicTable) {
 			sections.push('## Topics', '');
 
@@ -185,7 +180,7 @@ export class DailySummaryGenerator extends BaseGenerator {
 				sections.push(emptyStateMessage('topics'), '');
 			} else {
 				if (chartsEnabled) {
-					sections.push(topicDistributionChart(topTopics, maxChartItems), '');
+					sections.push(topicDistributionChart(topTopics, maxChartItems, chartType), '');
 				}
 				if (showTopicTable) {
 					sections.push(

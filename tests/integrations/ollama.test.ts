@@ -599,6 +599,105 @@ describe('OllamaClient', () => {
   });
 
   // ============================================================================
+  // hasModel Tests
+  // ============================================================================
+
+  describe('hasModel', () => {
+    it('should return true for exact match', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'llama3:latest', size: 1000, modified_at: '2024-01-01' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('llama3:latest');
+      expect(result).toBe(true);
+    });
+
+    it('should return true for partial match (name without tag)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'llama3:latest', size: 1000, modified_at: '2024-01-01' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('llama3');
+      expect(result).toBe(true);
+    });
+
+    it('should be case-insensitive', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'Llama3:Latest', size: 1000, modified_at: '2024-01-01' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('LLAMA3');
+      expect(result).toBe(true);
+    });
+
+    it('should return false when model is not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'mistral:latest', size: 1000, modified_at: '2024-01-01' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('llama3');
+      expect(result).toBe(false);
+    });
+
+    it('should not match substring (llama3 should not match llama3.1:latest)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'llama3.1:latest', size: 1000, modified_at: '2024-01-01' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('llama3');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when Ollama is unreachable', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+
+      const result = await client.hasModel('llama3');
+      expect(result).toBe(false);
+    });
+
+    it('should match among multiple models', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'llama3.1:latest', size: 1000, modified_at: '2024-01-01' },
+            { name: 'deepseek-r1:latest', size: 2000, modified_at: '2024-01-02' },
+            { name: 'llama3:latest', size: 1500, modified_at: '2024-01-03' },
+          ],
+        }),
+      });
+
+      const result = await client.hasModel('llama3');
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================================
   // Error Handling Tests
   // ============================================================================
 

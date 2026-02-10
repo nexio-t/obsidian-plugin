@@ -82,8 +82,7 @@ export class TodoListGenerator extends BaseGenerator {
 		const pendingTasks = tasks.filter(t => !t.completed);
 		const completedTasks = tasks.filter(t => t.completed);
 		const { todoIncludeCompleted, showCharts, chartType } = this.settings;
-		const chartsEnabled = showCharts && chartType === 'mermaid';
-		const chartsUnavailable = showCharts && chartType !== 'mermaid';
+		const chartsEnabled = showCharts;
 
 		const sections: string[] = [
 			'# Aggregated Todo List',
@@ -96,12 +95,8 @@ export class TodoListGenerator extends BaseGenerator {
 			'',
 		];
 
-		if (chartsUnavailable) {
-			sections.push('> [!info] Chart.js rendering is not available yet. Switch to Mermaid in settings.', '');
-		}
-
 		if (chartsEnabled && tasks.length > 0) {
-			sections.push(taskCompletionChart(completedTasks.length, pendingTasks.length), '');
+			sections.push(taskCompletionChart(completedTasks.length, pendingTasks.length, chartType), '');
 		}
 
 		sections.push(

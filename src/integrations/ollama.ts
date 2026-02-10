@@ -214,6 +214,20 @@ Summary:`;
   }
 
   /**
+   * Check if a specific model is available.
+   * Supports partial matching: "llama3" matches "llama3:latest" but not "llama3.1:latest".
+   */
+  async hasModel(modelName: string): Promise<boolean> {
+    const models = await this.listModels();
+    if (models.length === 0) return false;
+    const needle = modelName.toLowerCase();
+    return models.some(name => {
+      const lower = name.toLowerCase();
+      return lower === needle || lower.startsWith(needle + ':');
+    });
+  }
+
+  /**
    * Internal method to call Ollama generate API.
    */
   private async generate(prompt: string): Promise<OllamaGenerateResponse | null> {

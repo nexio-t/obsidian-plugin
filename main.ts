@@ -9,6 +9,7 @@ import {
   PendingTodoListGenerator,
   InsightsGenerator,
 } from './src/generators';
+import { registerChartJsProcessor } from './src/visualizations/chartjs-renderer';
 
 /**
  * Vault Insights Plugin
@@ -38,6 +39,9 @@ export default class VaultInsightsPlugin extends Plugin {
 
     // Add settings tab
     this.addSettingTab(new VaultInsightsSettingTab(this.app, this));
+
+    // Register Chart.js code block renderer
+    registerChartJsProcessor(this);
 
     // Register commands
     this.registerCommands();

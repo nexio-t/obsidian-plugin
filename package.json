@@ -34,5 +34,8 @@
     "obsidian": "latest",
     "ts-jest": "^29.0.0",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1"
   }
 }

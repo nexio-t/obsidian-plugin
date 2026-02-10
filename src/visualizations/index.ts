@@ -8,6 +8,15 @@ export {
 } from './mermaid';
 
 export {
+	generateChartJsPieChart,
+	generateChartJsBarChart,
+	generateChartJsTimeline,
+	wrapChartJsConfig,
+} from './chartjs';
+
+export { registerChartJsProcessor } from './chartjs-renderer';
+
+export {
 	topicDistributionChart,
 	dailyActivityChart,
 	folderDistributionChart,

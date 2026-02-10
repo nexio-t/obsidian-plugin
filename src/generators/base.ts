@@ -373,17 +373,29 @@ export abstract class BaseGenerator {
 	/**
 	 * Generate a summary using Ollama with graceful fallback.
 	 * Returns the summary string or null if unavailable.
+	 * Notifies the user when Ollama is enabled but fails.
 	 */
 	protected async summarizeWithOllamaFallback(content: string): Promise<string | null> {
-		if (!(await this.isOllamaAvailable())) {
+		if (!this.settings.ollamaEnabled || !this.ollamaClient) {
+			return null;
+		}
+
+		const reachable = await this.ollamaClient.isAvailable();
+		if (!reachable) {
+			this.notify('Ollama is not reachable — AI summary skipped.');
 			return null;
 		}
 
 		try {
-			const result = await this.ollamaClient!.summarize(content);
-			return result.summary || null;
+			const result = await this.ollamaClient.summarize(content);
+			if (!result.summary) {
+				this.notify('Ollama returned an empty summary — AI summary skipped.');
+				return null;
+			}
+			return result.summary;
 		} catch (error) {
 			console.warn('[VaultInsights] Ollama summarization failed:', error);
+			this.notify('Ollama summarization failed — AI summary skipped.');
 			return null;
 		}
 	}
@@ -391,17 +403,25 @@ export abstract class BaseGenerator {
 	/**
 	 * Extract topics using Ollama with graceful fallback.
 	 * Returns extracted topics or empty array if unavailable.
+	 * Notifies the user when Ollama is enabled but fails.
 	 */
 	protected async extractTopicsWithOllamaFallback(content: string): Promise<string[]> {
-		if (!(await this.isOllamaAvailable())) {
+		if (!this.settings.ollamaEnabled || !this.ollamaClient) {
+			return [];
+		}
+
+		const reachable = await this.ollamaClient.isAvailable();
+		if (!reachable) {
+			this.notify('Ollama is not reachable — AI topic extraction skipped.');
 			return [];
 		}
 
 		try {
-			const result = await this.ollamaClient!.extractTopics(content);
+			const result = await this.ollamaClient.extractTopics(content);
 			return result.topics;
 		} catch (error) {
 			console.warn('[VaultInsights] Ollama topic extraction failed:', error);
+			this.notify('Ollama topic extraction failed — AI topics skipped.');
 			return [];
 		}
 	}
