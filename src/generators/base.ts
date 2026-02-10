@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, TFile, normalizePath } from 'obsidian';
 import { VaultInsightsSettings, GeneratedNote, NoteFrontmatter, TopicData } from '../types';
 import { OllamaClient } from '../integrations/ollama';
 
@@ -25,18 +25,19 @@ export abstract class BaseGenerator {
 	 * Save a generated note to the vault and optionally open it
 	 */
 	protected async save(note: GeneratedNote, openAfterSave: boolean = true): Promise<TFile> {
-		await this.ensureFolder(this.getFolderPath(note.path));
+		const safePath = normalizePath(note.path);
+		await this.ensureFolder(this.getFolderPath(safePath));
 
 		const fullContent = this.buildNoteContent(note);
 
-		const existingFile = this.app.vault.getAbstractFileByPath(note.path);
+		const existingFile = this.app.vault.getAbstractFileByPath(safePath);
 
 		let file: TFile;
 		if (existingFile && existingFile instanceof TFile) {
 			await this.app.vault.modify(existingFile, fullContent);
 			file = existingFile;
 		} else {
-			file = await this.app.vault.create(note.path, fullContent);
+			file = await this.app.vault.create(safePath, fullContent);
 		}
 
 		if (openAfterSave) {
@@ -114,11 +115,12 @@ export abstract class BaseGenerator {
 	 */
 	protected async ensureFolder(folderPath: string): Promise<void> {
 		if (!folderPath) return;
+		const normalizedFolder = normalizePath(folderPath);
 
-		const existing = this.app.vault.getAbstractFileByPath(folderPath);
+		const existing = this.app.vault.getAbstractFileByPath(normalizedFolder);
 		if (existing) return;
 
-		const parts = folderPath.split('/').filter((p) => p.length > 0);
+		const parts = normalizedFolder.split('/').filter((p) => p.length > 0);
 		let currentPath = '';
 
 		for (const part of parts) {
@@ -171,10 +173,12 @@ export abstract class BaseGenerator {
 	 * Create a wikilink
 	 */
 	protected wikilink(path: string, displayText?: string): string {
-		const linkPath = path.endsWith('.md') ? path.slice(0, -3) : path;
+		const linkPath = (path.endsWith('.md') ? path.slice(0, -3) : path)
+			.replace(/\]\]/g, '');
 
 		if (displayText) {
-			return `[[${linkPath}|${displayText}]]`;
+			const safeDisplay = displayText.replace(/\]\]/g, '').replace(/\|/g, '-');
+			return `[[${linkPath}|${safeDisplay}]]`;
 		}
 
 		return `[[${linkPath}]]`;
@@ -392,7 +396,7 @@ export abstract class BaseGenerator {
 				this.notify('Ollama returned an empty summary — AI summary skipped.');
 				return null;
 			}
-			return result.summary;
+			return this.sanitizeLLMResponse(result.summary);
 		} catch (error) {
 			console.warn('[VaultInsights] Ollama summarization failed:', error);
 			this.notify('Ollama summarization failed — AI summary skipped.');
@@ -418,7 +422,7 @@ export abstract class BaseGenerator {
 
 		try {
 			const result = await this.ollamaClient.extractTopics(content);
-			return result.topics;
+			return result.topics.map(t => this.sanitizeLLMResponse(t));
 		} catch (error) {
 			console.warn('[VaultInsights] Ollama topic extraction failed:', error);
 			this.notify('Ollama topic extraction failed — AI topics skipped.');
@@ -504,6 +508,22 @@ export abstract class BaseGenerator {
 		}
 
 		return { totalWords, mostActiveNote, mostActiveWordCount };
+	}
+
+	/**
+	 * Sanitize LLM response text before embedding in generated markdown.
+	 * Strips code fences, markdown links, image embeds, wikilinks, and headings
+	 * to prevent injection of unexpected structure into generated notes.
+	 */
+	protected sanitizeLLMResponse(text: string): string {
+		return text
+			.replace(/```[\s\S]*?```/g, '')                      // Strip code fences
+			.replace(/`[^`]*`/g, '')                              // Strip inline code
+			.replace(/!\[[^\]]*\]\([^)]*\)/g, '')                 // Strip image embeds
+			.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')              // Strip markdown links (keep text)
+			.replace(/\[\[([^\]|]*?)(?:\|[^\]]*)?\]\]/g, '$1')    // Strip wikilinks (keep target)
+			.replace(/^#{1,6}\s+/gm, '')                          // Strip heading markers
+			.trim();
 	}
 
 	protected normalizeTag(tag: string): string {

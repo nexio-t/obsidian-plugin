@@ -51,6 +51,29 @@ export class OllamaClient {
   }
 
   /**
+   * Validate the configured URL.
+   * Returns an error message if invalid, or null if valid.
+   * Warns (via console) when the URL is not localhost.
+   */
+  validateUrl(): string | null {
+    try {
+      const parsed = new URL(this.config.url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return `Invalid Ollama URL scheme: ${parsed.protocol} (must be http or https)`;
+      }
+      const hostname = parsed.hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '::1') {
+        console.warn(
+          `[VaultInsights] Ollama URL points to a non-localhost host (${hostname}). Vault content will be sent to this host.`
+        );
+      }
+      return null;
+    } catch {
+      return `Invalid Ollama URL: ${this.config.url}`;
+    }
+  }
+
+  /**
    * Reset the availability cache.
    * Call this when settings change.
    */
@@ -70,6 +93,15 @@ export class OllamaClient {
       Date.now() - this.availabilityCacheTime < this.CACHE_TTL
     ) {
       return this.availabilityCache;
+    }
+
+    // Reject invalid URLs before making any request
+    const urlError = this.validateUrl();
+    if (urlError) {
+      this.availabilityCache = false;
+      this.availabilityCacheTime = Date.now();
+      console.warn(`[VaultInsights] ${urlError}`);
+      return false;
     }
 
     try {

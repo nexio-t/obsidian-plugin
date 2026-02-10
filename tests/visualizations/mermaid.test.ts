@@ -168,7 +168,7 @@ describe('generatePieChart', () => {
       const result = generatePieChart(data, 'Test Chart');
 
       expect(result).toContain('```mermaid');
-      expect(result).toContain('pie showData title Test Chart');
+      expect(result).toContain('pie showData title "Test Chart"');
       expect(result).toContain('"Category A" : 30');
       expect(result).toContain('"Category B" : 70');
       expect(result).toContain('```');
@@ -252,7 +252,7 @@ describe('generatePieChart', () => {
       ];
       const result = generatePieChart(data, 'Test "Chart"');
 
-      expect(result).toContain("title Test 'Chart'");
+      expect(result).toContain("title \"Test 'Chart'\"");
     });
 
     it('should handle labels with newlines', () => {

@@ -12,6 +12,8 @@ import {
 	Legend,
 } from 'chart.js';
 
+const MAX_DATASET_SIZE = 10000;
+
 // Register only the components we use for tree-shaking
 Chart.register(
 	ArcElement,
@@ -36,12 +38,36 @@ export function registerChartJsProcessor(plugin: Plugin): void {
 		try {
 			config = JSON.parse(source);
 		} catch {
-			const errorEl = el.createEl('div', {
+			el.createEl('div', {
 				cls: 'vault-insights-chartjs-error',
 				text: 'Invalid Chart.js configuration: could not parse JSON.',
 			});
-			errorEl.style.color = 'var(--text-error)';
 			return;
+		}
+
+		// Validate parsed config structure
+		if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+			el.createEl('div', {
+				cls: 'vault-insights-chartjs-error',
+				text: 'Invalid Chart.js configuration: expected a JSON object.',
+			});
+			return;
+		}
+
+		// Reject oversized datasets to prevent rendering DoS
+		const data = config.data as Record<string, unknown> | undefined;
+		if (data && Array.isArray(data.datasets)) {
+			for (const ds of data.datasets) {
+				if (ds && typeof ds === 'object' && Array.isArray((ds as Record<string, unknown>).data)) {
+					if (((ds as Record<string, unknown>).data as unknown[]).length > MAX_DATASET_SIZE) {
+						el.createEl('div', {
+							cls: 'vault-insights-chartjs-error',
+							text: `Chart dataset too large (max ${MAX_DATASET_SIZE} data points).`,
+						});
+						return;
+					}
+				}
+			}
 		}
 
 		const container = el.createEl('div', {

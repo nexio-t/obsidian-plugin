@@ -11,7 +11,7 @@ export function escapeLabel(label: string): string {
 		.replace(/\n/g, ' ')
 		.replace(/\r/g, '')
 		.replace(/#/g, 'sharp')
-		.replace(/[[\]{};<>]/g, '')
+		.replace(/[[\]{};<>|`]/g, '')
 		.trim();
 }
 
@@ -44,7 +44,7 @@ export function generatePieChart(
 		.join('\n');
 
 	return `\`\`\`mermaid
-pie showData title ${escapeLabel(title)}
+pie showData title "${escapeLabel(title)}"
 ${items}
 \`\`\``;
 }
