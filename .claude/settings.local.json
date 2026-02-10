@@ -19,7 +19,14 @@
       "Bash(npm test)",
       "Bash(ollama --version:*)",
       "Bash(curl:*)",
-      "Bash(ollama list:*)"
+      "Bash(ollama list:*)",
+      "Bash(head:*)",
+      "Bash(wc:*)",
+      "Bash(stat:*)",
+      "Bash(cat:*)",
+      "Bash(git -C \"/Users/tomasgear/Dropbox/Mac \\(3\\)/Desktop/Projects/Development/obsidian-plugin\" remote -v)",
+      "Bash(gh pr list:*)",
+      "Bash(gh auth:*)"
     ]
   }
 }
