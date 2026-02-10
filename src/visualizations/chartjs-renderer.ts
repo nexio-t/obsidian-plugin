@@ -11,6 +11,7 @@ import {
 	Tooltip,
 	Legend,
 } from 'chart.js';
+import type { ChartConfiguration } from 'chart.js';
 
 const MAX_DATASET_SIZE = 10000;
 
@@ -85,7 +86,7 @@ export function registerChartJsProcessor(plugin: Plugin): void {
 		const themedConfig = applyThemeDefaults(config, textColor, mutedColor, borderColor);
 
 		try {
-			const chart = new Chart(canvas, themedConfig as any);
+			const chart = new Chart(canvas, themedConfig as unknown as ChartConfiguration);
 
 			// Clean up chart when element is removed from DOM
 			const observer = new MutationObserver(() => {

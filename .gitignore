@@ -19,5 +19,8 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Plugin runtime data
+data.json
+
 # Local settings
 .claude/settings.local.json

@@ -26,8 +26,6 @@ export default class VaultInsightsPlugin extends Plugin {
   private isRunningScheduledTasks = false;
 
   async onload(): Promise<void> {
-    console.log('[VaultInsights] Loading plugin...');
-
     // Load settings
     await this.loadSettings();
 
@@ -55,14 +53,10 @@ export default class VaultInsightsPlugin extends Plugin {
 
     // Run once on load to catch missed schedules
     void this.runScheduledTasks();
-
-    console.log('[VaultInsights] Plugin loaded successfully');
   }
 
   async onunload(): Promise<void> {
-    console.log('[VaultInsights] Unloading plugin...');
-
-    console.log('[VaultInsights] Plugin unloaded');
+    // Cleanup handled by Obsidian's registerInterval / registerEvent
   }
 
   /**

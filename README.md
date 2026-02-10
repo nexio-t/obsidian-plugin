@@ -45,13 +45,16 @@ Understand what you write about most:
 
 ### Content Visualization
 
-Embedded Mermaid charts in your generated notes:
+Charts embedded directly in your generated notes:
 
-- **Pie charts**: Content distribution by topic or folder
+- **Pie/doughnut charts**: Content distribution by topic or folder
 - **Bar charts**: Topic frequency, daily activity
+- **Timelines**: Note creation over time
 - **Tables**: Ranked topic listings
 
-All charts render natively in Obsidian - zero external dependencies.
+Two rendering engines available:
+- **Mermaid** (default) — Native Obsidian support, zero dependencies, works on mobile
+- **Chart.js** — Interactive canvas-based charts with hover tooltips, theme-aware colors
 
 ## Installation
 
@@ -117,7 +120,7 @@ Access these commands via the Command Palette (`Ctrl/Cmd + P`).
 | Chart Type | Rendering engine for charts | `mermaid` |
 | Max Chart Items | Maximum items in charts | `10` |
 
-> Note: Chart.js is listed but not yet implemented. Mermaid is fully supported.
+> Both Mermaid and Chart.js are fully supported.
 
 ### Section Visibility
 
@@ -126,7 +129,7 @@ Customize which sections appear in generated summaries:
 | Setting | Description | Default |
 |---------|-------------|---------|
 | Show AI Summary | Include AI-generated summary section | On |
-| Show Charts | Include Mermaid charts and visualizations | On |
+| Show Charts | Include charts and visualizations | On |
 | Show File List | Include list of notes touched | On |
 | Show Topic Table | Include topic rankings table | On |
 
@@ -189,10 +192,13 @@ Vault Insights supports optional AI-powered features via [Ollama](https://ollama
 3. Start Ollama: `ollama serve`
 4. Enable in plugin settings and test the connection
 
-### Privacy
+### Privacy and network disclosure
+
+When Ollama is enabled, the plugin sends note content to your locally running Ollama instance over HTTP (`localhost:11434` by default). **No data is sent to any external server.**
 
 - All AI processing happens **locally** on your machine
-- No data is sent to external servers
+- Only the configured localhost URL is contacted
+- Non-localhost URLs trigger a console warning
 - Ollama runs entirely offline once models are downloaded
 - AI features gracefully degrade if Ollama is unavailable
 
@@ -205,7 +211,7 @@ Vault Insights supports optional AI-powered features via [Ollama](https://ollama
 | Language | TypeScript (strict mode) |
 | Runtime | Obsidian (Electron + Mobile) |
 | Build | esbuild |
-| Visualizations | Mermaid (native Obsidian support) |
+| Visualizations | Mermaid (native) + Chart.js (interactive) |
 | AI | Ollama (optional, local-only) |
 
 ## Development
@@ -219,7 +225,7 @@ Vault Insights supports optional AI-powered features via [Ollama](https://ollama
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/vault-insights.git
+git clone https://github.com/nexio-t/obsidian-plugin.git
 cd vault-insights
 
 # Install dependencies
@@ -248,45 +254,40 @@ npm run test:coverage
 
 ```
 vault-insights/
-├── main.ts                   # Plugin entry point
-├── manifest.json             # Obsidian plugin manifest
-├── package.json              # Dependencies and scripts
-├── tsconfig.json             # TypeScript configuration
-├── esbuild.config.mjs        # Build configuration
-├── jest.config.js            # Jest test configuration
-├── styles.css                # Plugin styles
-├── tests/                    # Test suite
-│   ├── __mocks__/            # Obsidian API mocks
-│   ├── generators/           # Generator tests
-│   └── visualizations/       # Visualization tests
+├── main.ts                        # Plugin entry point
+├── manifest.json                  # Obsidian plugin manifest
+├── package.json                   # Dependencies and scripts
+├── tsconfig.json                  # TypeScript configuration
+├── esbuild.config.mjs             # Build configuration
+├── jest.config.js                 # Jest test configuration
+├── styles.css                     # Plugin styles
+├── tests/                         # Test suite
+│   ├── __mocks__/                 # Obsidian API mocks
+│   ├── integrations/              # Ollama client tests
+│   └── visualizations/            # Mermaid and Chart.js tests
 └── src/
-    ├── types.ts              # Shared interfaces and types
-    ├── settings.ts           # Settings tab UI
-    ├── constants.ts          # Default values and patterns
-    │
-    ├── core/
-    │   ├── scanner.ts        # Vault scanning and filtering
-    │   └── cache.ts          # Caching layer for performance
+    ├── types.ts                   # Shared interfaces and types
+    ├── settings.ts                # Settings tab UI
     │
     ├── extractors/
-    │   ├── tasks.ts          # Task/checkbox extraction
-    │   ├── topics.ts         # Tag, heading, link analysis
-    │   ├── content.ts        # Content snippets and highlights
-    │   └── metadata.ts       # Frontmatter parsing
+    │   └── tasks.ts               # Task/checkbox extraction
     │
     ├── generators/
-    │   ├── base.ts           # Abstract base generator class
-    │   ├── daily-summary.ts  # Daily summary generation
-    │   ├── weekly-summary.ts # Weekly summary generation
-    │   ├── todo-list.ts      # Aggregated task list
-    │   └── insights.ts       # Topic analysis and insights
+    │   ├── base.ts                # Abstract base generator class
+    │   ├── daily-summary.ts       # Daily summary generation
+    │   ├── weekly-summary.ts      # Weekly summary generation
+    │   ├── todo-list.ts           # Aggregated task list
+    │   ├── pending-todo-list.ts   # Pending-only task list
+    │   └── insights.ts            # Topic analysis and insights
     │
     ├── visualizations/
-    │   ├── mermaid.ts        # Mermaid chart generation
-    │   └── templates.ts      # Chart templates and helpers
+    │   ├── mermaid.ts             # Mermaid chart generation
+    │   ├── chartjs.ts             # Chart.js config generation
+    │   ├── chartjs-renderer.ts    # Chart.js code block processor
+    │   └── templates.ts           # Chart template wrappers
     │
     └── integrations/
-        └── ollama.ts         # Ollama AI client
+        └── ollama.ts              # Ollama AI client
 ```
 
 ### Testing in Obsidian
@@ -353,8 +354,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-- [Report an issue](https://github.com/yourusername/vault-insights/issues)
-- [Feature requests](https://github.com/yourusername/vault-insights/discussions)
+- [Report an issue](https://github.com/nexio-t/obsidian-plugin/issues)
+- [Feature requests](https://github.com/nexio-t/obsidian-plugin/discussions)
 
 ## License
 

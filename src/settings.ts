@@ -27,8 +27,6 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h1', { text: 'Vault Insights Settings' });
-
     this.addSummarySettings(containerEl);
     this.addTodoSettings(containerEl);
     this.addTopicSettings(containerEl);
@@ -40,7 +38,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Summary generation settings section.
    */
   private addSummarySettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Summary Settings' });
+    new Setting(containerEl).setName('Summary').setHeading();
 
     new Setting(containerEl)
       .setName('Summary folder')
@@ -137,7 +135,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Todo aggregation settings section.
    */
   private addTodoSettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Todo Settings' });
+    new Setting(containerEl).setName('Todo').setHeading();
 
     new Setting(containerEl)
       .setName('Source folders')
@@ -203,7 +201,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Topic analysis settings section.
    */
   private addTopicSettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Topic Settings' });
+    new Setting(containerEl).setName('Topics').setHeading();
 
     new Setting(containerEl)
       .setName('Topic sources')
@@ -274,17 +272,11 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Ollama integration settings section.
    */
   private addOllamaSettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Ollama Settings (Desktop Only)' });
-
-    const descEl = containerEl.createEl('p', {
-      text: 'Ollama provides optional AI-powered topic extraction and summarization. It runs locally on your machine.',
-      cls: 'setting-item-description',
-    });
-    descEl.style.marginBottom = '1em';
+    new Setting(containerEl).setName('Ollama (desktop only)').setHeading();
 
     new Setting(containerEl)
       .setName('Enable Ollama')
-      .setDesc('Use Ollama for AI-powered features. Requires Ollama running locally.')
+      .setDesc('Use Ollama for AI-powered topic extraction and summarization. Requires Ollama running locally.')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.ollamaEnabled)
@@ -352,7 +344,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Visualization settings section.
    */
   private addVisualizationSettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Visualization Settings' });
+    new Setting(containerEl).setName('Visualization').setHeading();
 
     new Setting(containerEl)
       .setName('Chart type')
@@ -389,13 +381,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
    * Section visibility settings section.
    */
   private addSectionVisibilitySettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h3', { text: 'Section Visibility' });
-
-    const descEl = containerEl.createEl('p', {
-      text: 'Control which sections appear in generated summaries.',
-      cls: 'setting-item-description',
-    });
-    descEl.style.marginBottom = '1em';
+    new Setting(containerEl).setName('Section visibility').setHeading();
 
     new Setting(containerEl)
       .setName('Show AI summary')
