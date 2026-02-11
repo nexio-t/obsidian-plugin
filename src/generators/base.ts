@@ -68,7 +68,7 @@ export abstract class BaseGenerator {
 	 */
 	private buildFrontmatter(frontmatter: NoteFrontmatter | Record<string, unknown>): string {
 		const escapeYamlString = (str: string): string => {
-			if (/[:#\[\]{}&*!|>'"%@`\n\r]/.test(str) || str.startsWith(' ') || str.endsWith(' ')) {
+			if (/[:#\]{}&*!|>'"%@`\n\r]|\[/.test(str) || str.startsWith(' ') || str.endsWith(' ')) {
 				return `"${str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 			}
 			return str;
@@ -82,7 +82,7 @@ export abstract class BaseGenerator {
 				const items = value.map(v => typeof v === 'string' ? escapeYamlString(v) : String(v));
 				return `${key}: [${items.join(', ')}]`;
 			}
-			return `${key}: ${value}`;
+			return `${key}: ${String(value)}`;
 		};
 
 		const isNoteFrontmatter = 'title' in frontmatter && 'generated' in frontmatter && 'generator' in frontmatter;

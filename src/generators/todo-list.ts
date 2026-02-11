@@ -20,7 +20,7 @@ export class TodoListGenerator extends BaseGenerator {
 		const content = this.buildContent(tasks);
 
 		const dateStr = this.formatDate(new Date());
-		const title = `Todo List - ${dateStr}`;
+		const title = `Todo list - ${dateStr}`;
 		const path = `${this.settings.summaryFolder}/Todos/${title}.md`;
 
 		const note: GeneratedNote = {
@@ -85,11 +85,11 @@ export class TodoListGenerator extends BaseGenerator {
 		const chartsEnabled = showCharts;
 
 		const sections: string[] = [
-			'# Aggregated Todo List',
+			'# Aggregated todo list',
 			'',
 			'## Summary',
 			'',
-			`- **Total Tasks:** ${tasks.length}`,
+			`- **Total tasks:** ${tasks.length}`,
 			`- **Pending:** ${pendingTasks.length}`,
 			`- **Completed:** ${completedTasks.length}`,
 			'',
@@ -100,7 +100,7 @@ export class TodoListGenerator extends BaseGenerator {
 		}
 
 		sections.push(
-			'## Pending Tasks',
+			'## Pending tasks',
 			'',
 			pendingTasks.length === 0
 				? emptyStateMessage('tasks')
@@ -111,7 +111,7 @@ export class TodoListGenerator extends BaseGenerator {
 		// Only show completed tasks section if setting is enabled
 		if (todoIncludeCompleted) {
 			sections.push(
-				'## Completed Tasks',
+				'## Completed tasks',
 				'',
 				completedTasks.length === 0
 					? '> [!info] No completed tasks found.'
@@ -128,7 +128,7 @@ export class TodoListGenerator extends BaseGenerator {
 
 		const getGroupKey = (task: TaskItem): string => {
 			switch (todoGroupBy) {
-				case 'date': return task.dueDate ?? 'No Due Date';
+				case 'date': return task.dueDate ?? 'No due date';
 				case 'tag': return task.tags?.[0] ?? 'Untagged';
 				default: return task.file.path;
 			}
@@ -163,8 +163,8 @@ export class TodoListGenerator extends BaseGenerator {
 
 		const sortedGroups = Array.from(grouped.entries()).sort((a, b) => {
 			if (todoGroupBy === 'date') {
-				if (a[0] === 'No Due Date') return 1;
-				if (b[0] === 'No Due Date') return -1;
+				if (a[0] === 'No due date') return 1;
+				if (b[0] === 'No due date') return -1;
 			}
 			return a[0].localeCompare(b[0]);
 		});
@@ -174,7 +174,7 @@ export class TodoListGenerator extends BaseGenerator {
 			const lines: string[] = [];
 
 			// Add overdue warning for date groups
-			if (todoGroupBy === 'date' && !completed && groupKey !== 'No Due Date' && this.isOverdue(groupKey)) {
+			if (todoGroupBy === 'date' && !completed && groupKey !== 'No due date' && this.isOverdue(groupKey)) {
 				lines.push(`### ${header}`, '', '> [!warning] Overdue', '');
 			} else {
 				lines.push(`### ${header}`, '');

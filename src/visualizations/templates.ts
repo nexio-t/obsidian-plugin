@@ -26,8 +26,8 @@ export function topicDistributionChart(
 	}));
 
 	return chartType === 'chartjs'
-		? generateChartJsPieChart(data, 'Topic Distribution', maxItems)
-		: generatePieChart(data, 'Topic Distribution', maxItems);
+		? generateChartJsPieChart(data, 'Topic distribution', maxItems)
+		: generatePieChart(data, 'Topic distribution', maxItems);
 }
 
 /**
@@ -58,8 +58,8 @@ export function dailyActivityChart(
 	}
 
 	return chartType === 'chartjs'
-		? generateChartJsBarChart(orderedActivity, 'Daily Activity', 7, true)
-		: generateBarChart(orderedActivity, 'Daily Activity', 7, true);
+		? generateChartJsBarChart(orderedActivity, 'Daily activity', 7, true)
+		: generateBarChart(orderedActivity, 'Daily activity', 7, true);
 }
 
 /**
@@ -88,8 +88,8 @@ export function folderDistributionChart(
 	);
 
 	return chartType === 'chartjs'
-		? generateChartJsPieChart(data, 'Folder Distribution', maxItems)
-		: generatePieChart(data, 'Folder Distribution', maxItems);
+		? generateChartJsPieChart(data, 'Folder distribution', maxItems)
+		: generatePieChart(data, 'Folder distribution', maxItems);
 }
 
 /**
@@ -116,8 +116,8 @@ export function taskCompletionChart(
 	];
 
 	return chartType === 'chartjs'
-		? generateChartJsPieChart(data, 'Task Completion', 2)
-		: generatePieChart(data, 'Task Completion', 2);
+		? generateChartJsPieChart(data, 'Task completion', 2)
+		: generatePieChart(data, 'Task completion', 2);
 }
 
 /**
@@ -138,8 +138,8 @@ export function topicFrequencyChart(
 	}));
 
 	return chartType === 'chartjs'
-		? generateChartJsBarChart(data, 'Topic Frequency', maxItems)
-		: generateBarChart(data, 'Topic Frequency', maxItems);
+		? generateChartJsBarChart(data, 'Topic frequency', maxItems)
+		: generateBarChart(data, 'Topic frequency', maxItems);
 }
 
 /**

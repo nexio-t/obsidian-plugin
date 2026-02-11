@@ -12,7 +12,7 @@ export class PendingTodoListGenerator extends TodoListGenerator {
 		const content = this.buildPendingContent(pendingTasks);
 
 		const dateStr = this.formatDate(new Date());
-		const title = `Pending Todo List - ${dateStr}`;
+		const title = `Pending todo list - ${dateStr}`;
 		const path = `${this.settings.summaryFolder}/Todos/${title}.md`;
 
 		const note: GeneratedNote = {
@@ -34,7 +34,7 @@ export class PendingTodoListGenerator extends TodoListGenerator {
 	}
 
 	private buildPendingContent(tasks: TaskItem[]): string {
-		const sections: string[] = ['# Pending Todo List', ''];
+		const sections: string[] = ['# Pending todo list', ''];
 		if (tasks.length === 0) {
 			sections.push(emptyStateMessage('tasks'), '');
 			return sections.join('\n');

@@ -25,7 +25,11 @@ export default class VaultInsightsPlugin extends Plugin {
   ollamaClient!: OllamaClient;
   private isRunningScheduledTasks = false;
 
-  async onload(): Promise<void> {
+  onload(): void {
+    void this.initializePlugin();
+  }
+
+  private async initializePlugin(): Promise<void> {
     // Load settings
     await this.loadSettings();
 
@@ -55,7 +59,7 @@ export default class VaultInsightsPlugin extends Plugin {
     void this.runScheduledTasks();
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
     // Cleanup handled by Obsidian's registerInterval / registerEvent
   }
 
@@ -63,7 +67,8 @@ export default class VaultInsightsPlugin extends Plugin {
    * Load settings from data.json.
    */
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loaded = await this.loadData() as Partial<VaultInsightsSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
   }
 
   /**
@@ -88,57 +93,69 @@ export default class VaultInsightsPlugin extends Plugin {
     this.addCommand({
       id: 'generate-daily-summary',
       name: 'Generate daily summary',
-      callback: () => this.runGenerator('daily summary', () => {
-        const generator = new DailySummaryGenerator(this.app, this.settings, this.ollamaClient);
-        return generator.generate();
-      }),
+      callback: () => {
+        void this.runGenerator('daily summary', () => {
+          const generator = new DailySummaryGenerator(this.app, this.settings, this.ollamaClient);
+          return generator.generate();
+        });
+      },
     });
 
     // Generate weekly summary
     this.addCommand({
       id: 'generate-weekly-summary',
       name: 'Generate weekly summary',
-      callback: () => this.runGenerator('weekly summary', () => {
-        const generator = new WeeklySummaryGenerator(this.app, this.settings, this.ollamaClient);
-        return generator.generate();
-      }),
+      callback: () => {
+        void this.runGenerator('weekly summary', () => {
+          const generator = new WeeklySummaryGenerator(this.app, this.settings, this.ollamaClient);
+          return generator.generate();
+        });
+      },
     });
 
     // Generate todo list
     this.addCommand({
       id: 'generate-todo-list',
       name: 'Generate todo list',
-      callback: () => this.runGenerator('todo list', () => {
-        const generator = new TodoListGenerator(this.app, this.settings, this.ollamaClient);
-        return generator.generate();
-      }),
+      callback: () => {
+        void this.runGenerator('todo list', () => {
+          const generator = new TodoListGenerator(this.app, this.settings, this.ollamaClient);
+          return generator.generate();
+        });
+      },
     });
 
     // Generate pending-only todo list
     this.addCommand({
       id: 'generate-pending-todo-list',
       name: 'Generate pending todo list',
-      callback: () => this.runGenerator('pending todo list', () => {
-        const generator = new PendingTodoListGenerator(this.app, this.settings, this.ollamaClient);
-        return generator.generate();
-      }),
+      callback: () => {
+        void this.runGenerator('pending todo list', () => {
+          const generator = new PendingTodoListGenerator(this.app, this.settings, this.ollamaClient);
+          return generator.generate();
+        });
+      },
     });
 
     // Generate topic analysis
     this.addCommand({
       id: 'generate-topic-analysis',
       name: 'Analyze vault topics',
-      callback: () => this.runGenerator('topic analysis', () => {
-        const generator = new InsightsGenerator(this.app, this.settings, this.ollamaClient);
-        return generator.generate();
-      }),
+      callback: () => {
+        void this.runGenerator('topic analysis', () => {
+          const generator = new InsightsGenerator(this.app, this.settings, this.ollamaClient);
+          return generator.generate();
+        });
+      },
     });
 
     // Refresh all insights
     this.addCommand({
       id: 'refresh-insights',
       name: 'Refresh all insights',
-      callback: () => this.refreshAllInsights(),
+      callback: () => {
+        void this.refreshAllInsights();
+      },
     });
   }
 

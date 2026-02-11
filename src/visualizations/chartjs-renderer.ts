@@ -35,9 +35,9 @@ Chart.register(
  */
 export function registerChartJsProcessor(plugin: Plugin): void {
 	plugin.registerMarkdownCodeBlockProcessor('chartjs', (source, el) => {
-		let config: Record<string, unknown>;
+		let parsed: unknown;
 		try {
-			config = JSON.parse(source);
+			parsed = JSON.parse(source) as unknown;
 		} catch {
 			el.createEl('div', {
 				cls: 'vault-insights-chartjs-error',
@@ -47,13 +47,14 @@ export function registerChartJsProcessor(plugin: Plugin): void {
 		}
 
 		// Validate parsed config structure
-		if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
 			el.createEl('div', {
 				cls: 'vault-insights-chartjs-error',
 				text: 'Invalid Chart.js configuration: expected a JSON object.',
 			});
 			return;
 		}
+		const config = parsed as Record<string, unknown>;
 
 		// Reject oversized datasets to prevent rendering DoS
 		const data = config.data as Record<string, unknown> | undefined;

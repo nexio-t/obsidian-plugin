@@ -107,7 +107,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Use calendar weeks')
-      .setDesc('When enabled, weekly summaries cover Sunday–Saturday. When disabled, uses rolling lookback days.')
+      .setDesc('When enabled, weekly summaries cover sunday-saturday. When disabled, uses rolling lookback days.')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.weeklyUseCalendarWeeks)
@@ -119,7 +119,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Scheduled generation time')
-      .setDesc('Time to auto-generate summaries (HH:MM, 24-hour format). Leave empty to disable.')
+      .setDesc('Time to auto-generate summaries. Leave empty to disable.')
       .addText((text) =>
         text
           .setPlaceholder('09:00')
@@ -142,7 +142,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('Folders to scan for tasks. Leave empty to scan all folders.')
       .addText((text) =>
         text
-          .setPlaceholder('folder1, folder2')
+          .setPlaceholder('Example folder path')
           .setValue(this.plugin.settings.todoSourceFolders.join(', '))
           .onChange(async (value) => {
             this.plugin.settings.todoSourceFolders = value
@@ -158,7 +158,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('Folders to exclude from task scanning.')
       .addText((text) =>
         text
-          .setPlaceholder('templates, archive')
+          .setPlaceholder('Example excluded folder')
           .setValue(this.plugin.settings.todoExcludeFolders.join(', '))
           .onChange(async (value) => {
             this.plugin.settings.todoExcludeFolders = value
@@ -256,7 +256,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('Tags to exclude from topic analysis (comma-separated).')
       .addText((text) =>
         text
-          .setPlaceholder('daily, template')
+          .setPlaceholder('Example excluded tag')
           .setValue(this.plugin.settings.excludedTags.join(', '))
           .onChange(async (value) => {
             this.plugin.settings.excludedTags = value
@@ -291,7 +291,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('URL of your local Ollama instance.')
       .addText((text) =>
         text
-          .setPlaceholder('http://localhost:11434')
+          .setPlaceholder('Example: http://localhost:11434')
           .setValue(this.plugin.settings.ollamaUrl)
           .onChange(async (value) => {
             this.plugin.settings.ollamaUrl = value || 'http://localhost:11434';
@@ -304,7 +304,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('Model to use for AI features.')
       .addText((text) =>
         text
-          .setPlaceholder('llama3')
+          .setPlaceholder('Example: llama3')
           .setValue(this.plugin.settings.ollamaModel)
           .onChange(async (value) => {
             this.plugin.settings.ollamaModel = value || 'llama3';
@@ -351,8 +351,8 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .setDesc('Rendering engine for charts.')
       .addDropdown((dropdown) =>
         dropdown
-          .addOption('mermaid', 'Mermaid (Native)')
-          .addOption('chartjs', 'Chart.js (Interactive)')
+          .addOption('mermaid', 'Mermaid (native)')
+          .addOption('chartjs', 'Chart.js (interactive)')
           .setValue(this.plugin.settings.chartType)
           .onChange(async (value) => {
             this.plugin.settings.chartType = value as ChartType;

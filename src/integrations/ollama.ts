@@ -1,3 +1,5 @@
+import { requestUrl } from 'obsidian';
+import type { RequestUrlResponse } from 'obsidian';
 import type { OllamaConfig, OllamaTopicResult, OllamaSummaryResult, OllamaModel } from '../types';
 
 const DEFAULT_CONFIG: OllamaConfig = {
@@ -25,7 +27,7 @@ interface OllamaTagsResponse {
 /**
  * Client for interacting with local Ollama instance.
  * Designed for graceful degradation - never throws, always returns valid data.
- * Uses fetch() API for mobile compatibility.
+ * Uses requestUrl() for Obsidian compatibility.
  */
 export class OllamaClient {
   private config: OllamaConfig;
@@ -105,17 +107,12 @@ export class OllamaClient {
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
-
-      const response = await fetch(`${this.config.url}/api/tags`, {
+      const response = await this.requestWithTimeout({
+        url: `${this.config.url}/api/tags`,
         method: 'GET',
-        signal: controller.signal,
-      });
+      }, HEALTH_CHECK_TIMEOUT);
 
-      clearTimeout(timeoutId);
-
-      this.availabilityCache = response.ok;
+      this.availabilityCache = response !== null && response.status >= 200 && response.status < 300;
       this.availabilityCacheTime = Date.now();
 
       return this.availabilityCache;
@@ -220,21 +217,16 @@ Summary:`;
    */
   async getModels(): Promise<OllamaModel[]> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
-
-      const response = await fetch(`${this.config.url}/api/tags`, {
+      const response = await this.requestWithTimeout({
+        url: `${this.config.url}/api/tags`,
         method: 'GET',
-        signal: controller.signal,
-      });
+      }, HEALTH_CHECK_TIMEOUT);
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
+      if (!response || response.status < 200 || response.status >= 300) {
         return [];
       }
 
-      const data = await response.json() as OllamaTagsResponse;
+      const data = response.json as OllamaTagsResponse;
       return data.models?.map(m => ({
         name: m.name,
         size: m.size,
@@ -264,31 +256,45 @@ Summary:`;
    */
   private async generate(prompt: string): Promise<OllamaGenerateResponse | null> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
-
-      const response = await fetch(`${this.config.url}/api/generate`, {
+      const response = await this.requestWithTimeout({
+        url: `${this.config.url}/api/generate`,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        contentType: 'application/json',
         body: JSON.stringify({
           model: this.config.model,
           prompt,
           stream: false,
         }),
-        signal: controller.signal,
-      });
+      }, this.config.timeout);
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
+      if (!response || response.status < 200 || response.status >= 300) {
         return null;
       }
 
-      return await response.json() as OllamaGenerateResponse;
+      return response.json as OllamaGenerateResponse;
     } catch {
       return null;
+    }
+  }
+
+  private async requestWithTimeout(
+    request: { url: string; method: 'GET' | 'POST'; contentType?: string; body?: string },
+    timeoutMs: number
+  ): Promise<RequestUrlResponse | null> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+      });
+      const requestPromise = requestUrl({ ...request, throw: false });
+      const response: RequestUrlResponse = await Promise.race([requestPromise, timeoutPromise]);
+      return response;
+    } catch {
+      return null;
+    } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 
@@ -299,7 +305,7 @@ Summary:`;
   private parseTopicsFromResponse(response: string): string[] {
     // Try direct JSON parse first
     try {
-      const parsed = JSON.parse(response);
+      const parsed: unknown = JSON.parse(response);
       if (Array.isArray(parsed)) {
         return parsed.filter((t): t is string => typeof t === 'string');
       }
@@ -311,7 +317,7 @@ Summary:`;
     const arrayMatch = response.match(/\[[\s\S]*?\]/);
     if (arrayMatch) {
       try {
-        const parsed = JSON.parse(arrayMatch[0]);
+        const parsed: unknown = JSON.parse(arrayMatch[0]);
         if (Array.isArray(parsed)) {
           return parsed.filter((t): t is string => typeof t === 'string');
         }
