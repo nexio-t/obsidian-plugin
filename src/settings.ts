@@ -275,8 +275,8 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName('Ollama (desktop only)').setHeading();
 
     new Setting(containerEl)
-      .setName('Enable Ollama')
-      .setDesc('Use Ollama for AI-powered topic extraction and summarization. Requires Ollama running locally.')
+      .setName('Enable ollama')
+      .setDesc('Use ollama for AI-powered topic extraction and summarization. Requires ollama running locally.')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.ollamaEnabled)
@@ -288,10 +288,10 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Ollama URL')
-      .setDesc('URL of your local Ollama instance.')
+      .setDesc('URL of your local ollama instance.')
       .addText((text) =>
         text
-          .setPlaceholder('Example: http://localhost:11434')
+          .setPlaceholder('Enter endpoint URL')
           .setValue(this.plugin.settings.ollamaUrl)
           .onChange(async (value) => {
             this.plugin.settings.ollamaUrl = value || 'http://localhost:11434';
@@ -314,7 +314,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Test connection')
-      .setDesc('Test if Ollama is available and the configured model exists.')
+      .setDesc('Test if ollama is available and the configured model exists.')
       .addButton((button) =>
         button.setButtonText('Test').onClick(async () => {
           button.setButtonText('Testing...');
@@ -352,7 +352,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
       .addDropdown((dropdown) =>
         dropdown
           .addOption('mermaid', 'Mermaid (native)')
-          .addOption('chartjs', 'Chart.js (interactive)')
+          .addOption('chartjs', 'Chart js (interactive)')
           .setValue(this.plugin.settings.chartType)
           .onChange(async (value) => {
             this.plugin.settings.chartType = value as ChartType;
@@ -385,7 +385,7 @@ export class VaultInsightsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Show AI summary')
-      .setDesc('Include AI-generated summary section (requires Ollama).')
+      .setDesc('Include AI-generated summary section (requires ollama).')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showAISummary)

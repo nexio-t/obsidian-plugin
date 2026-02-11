@@ -41,7 +41,7 @@ export function registerChartJsProcessor(plugin: Plugin): void {
 		} catch {
 			el.createEl('div', {
 				cls: 'vault-insights-chartjs-error',
-				text: 'Invalid Chart.js configuration: could not parse JSON.',
+				text: 'Invalid chart js configuration: could not parse JSON.',
 			});
 			return;
 		}
@@ -50,7 +50,7 @@ export function registerChartJsProcessor(plugin: Plugin): void {
 		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
 			el.createEl('div', {
 				cls: 'vault-insights-chartjs-error',
-				text: 'Invalid Chart.js configuration: expected a JSON object.',
+				text: 'Invalid chart js configuration: expected a JSON object.',
 			});
 			return;
 		}

@@ -30,8 +30,6 @@ export default defineConfig([
         "error",
         {
           enforceCamelCaseLower: true,
-          acronyms: ["AI", "URL", "JSON", "HH", "MM"],
-          brands: ["Ollama", "Chart.js", "Mermaid"],
         },
       ],
       "no-console": "off",
